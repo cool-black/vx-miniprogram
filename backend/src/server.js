@@ -2,6 +2,7 @@ import http from "node:http";
 import { getTodayQuestion } from "./services/question-service.js";
 import { createPracticeAttempt } from "./services/practice-service.js";
 import { createTencentAsrSession } from "./services/tencent-asr-service.js";
+import { persistAnalyticsEvent } from "./services/analytics-store.js";
 import { readJsonBody, sendJson } from "./utils/http.js";
 import { loadEnvFile } from "./utils/env.js";
 
@@ -74,6 +75,42 @@ const server = http.createServer(async (req, res) => {
         error: {
           code: "internal_error",
           message: "Something went wrong while processing your answer."
+        }
+      });
+      return;
+    }
+  }
+
+  if (req.method === "POST" && req.url === "/events") {
+    try {
+      const body = await readJsonBody(req);
+
+      if (typeof body?.name !== "string" || body.name.trim().length === 0) {
+        sendJson(res, 400, {
+          error: {
+            code: "invalid_event_name",
+            message: "Event name is required."
+          }
+        });
+        return;
+      }
+
+      await persistAnalyticsEvent({
+        name: body.name,
+        sessionId: body.sessionId || "",
+        questionId: body.questionId || "",
+        attemptId: body.attemptId || "",
+        isRetry: Boolean(body.isRetry),
+        source: body.source || "miniprogram"
+      });
+
+      sendJson(res, 200, { ok: true });
+      return;
+    } catch {
+      sendJson(res, 400, {
+        error: {
+          code: "invalid_event_payload",
+          message: "Event payload is invalid."
         }
       });
       return;

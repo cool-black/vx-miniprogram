@@ -1,4 +1,8 @@
-const { createPracticeAttempt, fetchTencentAsrSession } = require("../../services/api");
+const {
+  createPracticeAttempt,
+  fetchTencentAsrSession,
+  trackPracticeEvent
+} = require("../../services/api");
 const { getRecorderManager } = require("../../services/recorder");
 const { readFileAsBase64 } = require("../../utils/file");
 const { createSpeechProvider } = require("../../services/speech-provider");
@@ -14,6 +18,16 @@ function authorizeRecordScope() {
       fail: reject
     });
   });
+}
+
+function sendRecorderEvent(name, extra = {}) {
+  const app = getApp();
+  return trackPracticeEvent({
+    name,
+    sessionId: app.globalData.analyticsSessionId,
+    source: "recorder_page",
+    ...extra
+  }).catch(() => {});
 }
 
 Page({
@@ -113,6 +127,12 @@ Page({
   },
 
   async startRecording() {
+    const { question, isRetry } = this.data;
+    sendRecorderEvent("recording_started", {
+      questionId: question?.id || "",
+      isRetry
+    });
+
     try {
       await authorizeRecordScope();
       this.setData({
@@ -243,6 +263,7 @@ Page({
         questionId: question.id,
         retryToken: isRetry ? retryToken : "",
         parentAttemptId: isRetry ? parentAttemptId : "",
+        analyticsSessionId: getApp().globalData.analyticsSessionId,
         audioBase64,
         audioMimeType: "audio/mpeg",
         audioFilename: this.tempFilePath ? this.tempFilePath.split("/").pop() : "",

@@ -1,144 +1,96 @@
 # IELTS Speaking v0
 
-This repository contains the first scaffold for the IELTS speaking WeChat mini program.
+This repository contains the current scaffold for the IELTS speaking WeChat mini program and its local backend.
 
-## Structure
+## What lives here
 
+- `backend/`: local backend used for questions, recording upload, transcription, and feedback
+- `miniprogram/`: WeChat mini program client
 - `PRD.md`: product scope and validation goal
 - `TECH_SPEC.md`: technical design
-- `BUILD_CHECKLIST.md`: execution checklist
-- `backend/`: local mockable backend
-- `miniprogram/`: WeChat mini program scaffold
+- `BUILD_CHECKLIST.md`: next-cycle execution checklist
+- `SMOKE_CHECKLIST.md`: practical smoke test checklist for validation runs
 
-## Backend
+## Quick Start
 
-Run the backend locally:
+### 1. Install dependencies
+
+Run this from the repository root:
+
+```bash
+npm install
+```
+
+### 2. Prepare backend env
+
+Copy the example file and fill in the values you need:
+
+```text
+backend/.env.example -> backend/.env
+```
+
+Minimum useful setup for local validation:
+
+- `NODE_ENV=development`
+- `STT_PROVIDER=frontend`
+- `FEEDBACK_PROVIDER=minimax`
+- `MINIMAX_API_KEY=...` if you want real feedback generation
+- `TENCENT_ASR_APP_ID`, `TENCENT_ASR_SECRET_ID`, `TENCENT_ASR_SECRET_KEY` if you want Tencent ASR
+
+### 3. Start the backend
 
 ```bash
 npm run dev:backend
 ```
 
-Local config file:
+The backend runs from the workspace script in the repo root.
 
-```bash
-backend/.env
-```
-
-Example:
-
-```bash
-OPENAI_API_KEY=
-MINIMAX_API_KEY=your_minimax_key
-MINIMAX_BASE_URL=https://api.minimax.chat/v1
-NODE_ENV=development
-STT_PROVIDER=frontend
-FEEDBACK_PROVIDER=minimax
-FEEDBACK_MODEL=MiniMax-M2.7
-TENCENT_ASR_APP_ID=your_tencent_asr_app_id
-TENCENT_ASR_SECRET_ID=your_tencent_secret_id
-TENCENT_ASR_SECRET_KEY=your_tencent_secret_key
-TENCENT_ASR_ENGINE_MODEL=16k_zh
-TENCENT_ASR_VOICE_FORMAT=8
-```
-
-You can also copy:
-
-```bash
-backend/.env.example
-```
-
-Available routes:
+Useful routes:
 
 - `GET /health`
 - `GET /questions/today`
 - `GET /asr/tencent/session`
 - `POST /practice-attempts`
 
-The backend loads `backend/.env` automatically on startup.
-The recommended MiniMax setup is:
-
-- frontend or WeChat-side transcript
-- MiniMax for feedback generation
-
-Current behavior:
-
-- if `transcript` is provided by the frontend, backend uses it directly
-- if `FEEDBACK_PROVIDER=minimax` and `MINIMAX_API_KEY` is present, backend tries real MiniMax feedback
-- if MiniMax request fails, backend falls back to mock feedback
-- `GET /asr/tencent/session` returns a backend-signed Tencent ASR websocket URL
-
-## Mini Program
+### 4. Open the mini program in WeChat DevTools
 
 Open the `miniprogram/` directory in WeChat DevTools.
 
-The mini program environment config lives in:
+The environment config is in:
 
 ```text
 miniprogram/config/env.js
 ```
 
-It now supports two base URLs:
+Recommended values for local work:
 
-- `devtoolsApiBaseUrl`: used automatically in WeChat DevTools
-- `deviceApiBaseUrl`: used automatically on a real phone
+- `devtoolsApiBaseUrl`: your local backend, usually `http://127.0.0.1:8787`
+- `deviceApiBaseUrl`: your LAN IP, for example `http://192.168.1.23:8787`
+- `speechMode`: `manual` for a safer first smoke, or `tencent` when ASR credentials are ready
 
-Example:
+For Windows + DevTools, `127.0.0.1` is usually more reliable than `localhost`.
 
-```js
-const ENV_CONFIG = {
-  speechMode: "tencent",
-  devtoolsApiBaseUrl: "http://127.0.0.1:8787",
-  deviceApiBaseUrl: "http://192.168.1.100:8787"
-};
-```
+### 5. Real-device debugging
 
-For local development on Windows, DevTools still defaults to:
+If you want to test on a phone:
 
-```text
-http://127.0.0.1:8787
-```
+- keep the phone and computer on the same LAN
+- point `deviceApiBaseUrl` at the computer's LAN IP
+- switch `speechMode` to `tencent` only after Tencent credentials are configured
 
-This is more reliable than `localhost` in WeChat DevTools on some machines.
+## Practical notes
 
-For real-device debugging, replace `deviceApiBaseUrl` with your computer's LAN IP, for example:
+- The current flow is intentionally lightweight so we can validate the end-to-end loop quickly.
+- Audio upload currently uses a base64 JSON path instead of multipart upload.
+- If feedback generation is unavailable, the backend falls back to mock feedback so the loop can still be exercised.
+- Attempt audio and metadata are written under `backend/.runtime/`.
 
-```text
-http://192.168.1.23:8787
-```
+## Suggested first validation path
 
-Speech mode is controlled in:
+1. Start backend.
+2. Open the mini program in DevTools.
+3. Run one happy-path submission.
+4. Run one retry via `再答一次`.
+5. Re-run on a real device only after the DevTools flow is stable.
 
-```text
-miniprogram/config/env.js
-```
-
-Available values:
-
-- `manual`
-- `tencent`
-
-Example:
-
-```js
-speechMode: "tencent"
-```
-
-Current scaffold includes:
-
-- home page
-- recorder page
-- feedback page
-- basic request layer
-- real local recording read on the mini program side
-- backend attempt audio persistence
-- mock happy path with retry
-
-## Current shortcuts
-
-- audio is currently posted as base64 JSON instead of multipart upload
-- transcript now supports `manual` and `tencent` provider modes
-- feedback generation can use real MiniMax when `MINIMAX_API_KEY` is configured, otherwise it falls back to mock output
-- no database persistence yet, but attempt audio files are written under `backend/.runtime/attempts/`
-- attempt metadata is appended to `backend/.runtime/attempts.jsonl`
-
-Those are intentional v0 shortcuts so we can keep building the flow without blocking on external services.
+For the exact smoke sequence, use `SMOKE_CHECKLIST.md`.

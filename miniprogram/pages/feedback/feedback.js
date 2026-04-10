@@ -1,3 +1,15 @@
+const { trackPracticeEvent } = require("../../services/api");
+
+function sendFeedbackEvent(name, extra = {}) {
+  const app = getApp();
+  return trackPracticeEvent({
+    name,
+    sessionId: app.globalData.analyticsSessionId,
+    source: "feedback_page",
+    ...extra
+  }).catch(() => {});
+}
+
 Page({
   data: {
     attempt: null,
@@ -21,12 +33,24 @@ Page({
       status: "ready",
       errorMessage: ""
     });
+
+    sendFeedbackEvent("feedback_viewed", {
+      attemptId: attempt.attemptId || "",
+      questionId: attempt.question?.id || "",
+      isRetry: Boolean(attempt.isRetry)
+    });
   },
 
   retryAttempt() {
     const attempt = this.data.attempt;
     const app = getApp();
     app.globalData.currentQuestion = attempt.question;
+
+    sendFeedbackEvent("retry_clicked", {
+      attemptId: attempt.attemptId || "",
+      questionId: attempt.question?.id || "",
+      isRetry: true
+    });
 
     wx.redirectTo({
       url: "/pages/recorder/recorder?retry=1"

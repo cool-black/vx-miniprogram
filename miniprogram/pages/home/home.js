@@ -1,4 +1,14 @@
-const { fetchTodayQuestion } = require("../../services/api");
+const { fetchTodayQuestion, trackPracticeEvent } = require("../../services/api");
+
+function sendPageEvent(name, extra = {}) {
+  const app = getApp();
+  return trackPracticeEvent({
+    name,
+    sessionId: app.globalData.analyticsSessionId,
+    source: "home_page",
+    ...extra
+  }).catch(() => {});
+}
 
 Page({
   data: {
@@ -25,6 +35,10 @@ Page({
       this.setData({
         status: "ready",
         question: response.question
+      });
+
+      sendPageEvent("home_viewed", {
+        questionId: response.question?.id || ""
       });
     } catch (error) {
       this.setData({

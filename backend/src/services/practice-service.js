@@ -3,6 +3,7 @@ import { getQuestionById } from "./question-service.js";
 import { transcribeAttempt } from "./transcription-service.js";
 import { generateFeedback } from "./feedback-service.js";
 import { persistAttemptAudio, persistAttemptRecord } from "./attempt-store.js";
+import { persistAnalyticsEvent } from "./analytics-store.js";
 
 function isDevelopment() {
   return (process.env.NODE_ENV || "development") !== "production";
@@ -107,6 +108,15 @@ export async function createPracticeAttempt(body) {
     parentAttemptId: body.parentAttemptId || null,
     isRetry: Boolean(body.retryToken),
     createdAt: new Date().toISOString()
+  });
+
+  await persistAnalyticsEvent({
+    name: body.retryToken ? "retry_submit_success" : "first_submit_success",
+    sessionId: body.analyticsSessionId || "",
+    questionId: question.id,
+    attemptId,
+    isRetry: Boolean(body.retryToken),
+    source: "practice_service"
   });
 
   return {

@@ -55,8 +55,17 @@ function createPracticeAttempt(payload) {
   });
 }
 
+function trackPracticeEvent(payload) {
+  return request({
+    url: "/events",
+    method: "POST",
+    data: payload
+  });
+}
+
 module.exports = {
   fetchTodayQuestion,
   fetchTencentAsrSession,
-  createPracticeAttempt
+  createPracticeAttempt,
+  trackPracticeEvent
 };

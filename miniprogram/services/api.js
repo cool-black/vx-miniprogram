@@ -3,6 +3,15 @@ function getAppBaseUrl() {
   return app.globalData.apiBaseUrl;
 }
 
+function getReadableHost() {
+  try {
+    const apiBaseUrl = getAppBaseUrl();
+    return apiBaseUrl.replace(/^https?:\/\//, "");
+  } catch {
+    return "127.0.0.1:8787";
+  }
+}
+
 function request({ url, method = "GET", data }) {
   return new Promise((resolve, reject) => {
     wx.request({
@@ -22,7 +31,8 @@ function request({ url, method = "GET", data }) {
       },
       fail: () => {
         reject({
-          message: "网络请求失败或超时，请确认本地后端正在运行，并且 127.0.0.1:8787 可访问。"
+          code: "network_request_failed",
+          message: `网络请求失败或超时，请确认本地后端正在运行，并且 ${getReadableHost()} 可访问。`
         });
       }
     });

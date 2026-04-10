@@ -30,7 +30,9 @@ Page({
     recognitionStatus: "",
     isRetry: false,
     retryToken: "",
-    parentAttemptId: ""
+    parentAttemptId: "",
+    canRetrySubmit: false,
+    submissionTimedOut: false
   },
 
   timer: null,
@@ -41,6 +43,7 @@ Page({
   recordingDurationMs: 0,
   isPageActive: false,
   speechProvider: null,
+  activeSubmissionToken: 0,
 
   onLoad(options) {
     const app = getApp();
@@ -97,7 +100,9 @@ Page({
     clearInterval(this.timer);
     this.setData({
       status: "recorded",
-      countdownLabel: "录音完成"
+      countdownLabel: "录音完成",
+      canRetrySubmit: false,
+      submissionTimedOut: false
     });
     this.handleRecognitionAfterRecording();
   },
@@ -108,12 +113,16 @@ Page({
     this.setData({
       status: "submit_failed",
       uploadStatusMessage: "",
-      errorMessage: "录音失败了，请重新试一次。"
+      errorMessage: "录音失败了，请重新试一次。",
+      canRetrySubmit: false
     });
   },
 
   async startRecording() {
     try {
+      this.activeSubmissionToken += 1;
+      this.tempFilePath = "";
+      this.recordingDurationMs = 0;
       await authorizeRecordScope();
       this.setData({
         status: "recording",
@@ -121,8 +130,11 @@ Page({
         errorMessage: "",
         uploadStatusMessage: "",
         recognitionStatus: "",
+        transcriptText: "",
         seconds: 45,
-        countdownLabel: "45s"
+        countdownLabel: "45s",
+        canRetrySubmit: false,
+        submissionTimedOut: false
       });
       this.startCountdown();
       this.recorder.start({
@@ -134,7 +146,8 @@ Page({
         status: "permission_failed",
         permissionDenied: true,
         uploadStatusMessage: "",
-        errorMessage: "录音权限被拒绝了，请打开权限设置后再试一次。"
+        errorMessage: "录音权限被拒绝了，请打开权限设置后再试一次。",
+        canRetrySubmit: false
       });
     }
   },
@@ -220,21 +233,31 @@ Page({
   async submitAttempt() {
     const { question, retryToken, parentAttemptId, isRetry } = this.data;
 
+    if (this.data.status === "uploading") {
+      return;
+    }
+
     if (!question) {
       this.setData({
         status: "submit_failed",
-        errorMessage: "题目上下文丢失了，请返回首页重试。"
+        errorMessage: "题目上下文丢失了，请返回首页重试。",
+        canRetrySubmit: false
       });
       return;
     }
 
+    const submissionToken = this.activeSubmissionToken + 1;
+    this.activeSubmissionToken = submissionToken;
+
     this.setData({
       status: "uploading",
       errorMessage: "",
-      uploadStatusMessage: "正在分析你的回答..."
+      uploadStatusMessage: "正在分析你的回答...",
+      canRetrySubmit: false,
+      submissionTimedOut: false
     });
 
-    this.startProcessingTimers();
+    this.startProcessingTimers(submissionToken);
 
     try {
       const audioBase64 = this.tempFilePath ? await readFileAsBase64(this.tempFilePath) : "";
@@ -253,7 +276,7 @@ Page({
       getApp().globalData.latestAttempt = response;
       this.clearProcessingTimers();
 
-      if (!this.isPageActive) {
+      if (!this.isPageActive || submissionToken !== this.activeSubmissionToken || this.data.submissionTimedOut) {
         return;
       }
 
@@ -265,7 +288,8 @@ Page({
       this.setData({
         status: "submit_failed",
         uploadStatusMessage: "",
-        errorMessage: error.message || "提交失败了，请重新试一次。"
+        errorMessage: error.message || "提交失败了，请重新试一次。",
+        canRetrySubmit: Boolean(this.tempFilePath || this.data.transcriptText.trim())
       });
     }
   },
@@ -274,11 +298,11 @@ Page({
     this.submitAttempt();
   },
 
-  startProcessingTimers() {
+  startProcessingTimers(submissionToken) {
     this.clearProcessingTimers();
 
     this.processingHintTimer = setTimeout(() => {
-      if (this.data.status === "uploading") {
+      if (this.data.status === "uploading" && submissionToken === this.activeSubmissionToken) {
         this.setData({
           uploadStatusMessage: "还在分析你的回答，再等一下..."
         });
@@ -286,14 +310,20 @@ Page({
     }, 8000);
 
     this.processingTimeoutTimer = setTimeout(() => {
-      if (this.data.status === "uploading") {
+      if (this.data.status === "uploading" && submissionToken === this.activeSubmissionToken) {
         this.setData({
           status: "submit_failed",
           uploadStatusMessage: "",
-          errorMessage: "处理时间有点长，这次先失败了，请重新试一次。"
+          errorMessage: "处理时间有点长，这次先失败了，请重新试一次。",
+          canRetrySubmit: Boolean(this.tempFilePath || this.data.transcriptText.trim()),
+          submissionTimedOut: true
         });
       }
     }, 15000);
+  },
+
+  retrySubmitAttempt() {
+    this.submitAttempt();
   },
 
   clearProcessingTimers() {

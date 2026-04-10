@@ -17,7 +17,10 @@
     <block wx:if="{{status === 'idle' || status === 'permission_failed' || status === 'submit_failed'}}">
       <view wx:if="{{errorMessage}}" class="error">{{errorMessage}}</view>
       <view wx:if="{{status === 'permission_failed'}}" class="button secondary-button" bindtap="openPermissionSettings">打开权限设置</view>
-      <view class="button" bindtap="startRecording">开始录音</view>
+      <view wx:if="{{status === 'submit_failed' && canRetrySubmit}}" class="button" bindtap="retrySubmitAttempt">重新提交反馈</view>
+      <view class="button {{status === 'submit_failed' && canRetrySubmit ? 'secondary-button' : ''}}" bindtap="startRecording">
+        {{status === 'submit_failed' ? '重新录音' : '开始录音'}}
+      </view>
     </block>
 
     <block wx:elif="{{status === 'recording'}}">

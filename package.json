@@ -1,0 +1,12 @@
+{
+  "name": "ielts-speaking-v0",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "dev:backend": "npm --workspace backend run dev",
+    "start:backend": "npm --workspace backend run start"
+  }
+}

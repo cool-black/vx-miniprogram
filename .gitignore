@@ -1,0 +1,5 @@
+backend/.runtime/
+backend/backend/
+backend/.env
+node_modules/
+miniprogram/project.private.config.json

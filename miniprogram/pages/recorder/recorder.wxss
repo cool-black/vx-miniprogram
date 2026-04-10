@@ -1,0 +1,20 @@
+.screen {
+  padding-top: 48rpx;
+}
+
+.transcript-input {
+  margin-top: 20rpx;
+  min-height: 180rpx;
+  padding: 18rpx;
+  border-radius: 18rpx;
+  background: #fff7ee;
+  font-size: 28rpx;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.transcript-label {
+  margin-top: 24rpx;
+  color: #8f6b43;
+  font-size: 24rpx;
+}

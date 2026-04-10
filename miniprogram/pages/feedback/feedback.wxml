@@ -1,0 +1,24 @@
+<view class="screen">
+  <view class="card">
+    <block wx:if="{{status === 'failed'}}">
+      <view class="error">{{errorMessage}}</view>
+      <view class="button secondary-button" bindtap="backHome">返回首页</view>
+    </block>
+
+    <block wx:elif="{{status === 'ready' && attempt}}">
+      <view class="title">这次你已经开口了</view>
+      <view class="subtitle">{{attempt.feedback.overall}}</view>
+
+      <view class="hint">你的转写：{{attempt.transcript}}</view>
+
+      <view class="prompt">切题：{{attempt.feedback.relevance}}</view>
+      <view class="prompt">长度：{{attempt.feedback.length}}</view>
+      <view class="prompt">自然度：{{attempt.feedback.naturalness}}</view>
+
+      <view class="hint">参考答案：{{attempt.sampleAnswer}}</view>
+
+      <view class="button" bindtap="retryAttempt">再答一次</view>
+      <view class="button secondary-button" bindtap="backHome">返回首页</view>
+    </block>
+  </view>
+</view>

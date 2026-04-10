@@ -1,0 +1,92 @@
+[
+  {
+    "id": "part1_hometown_001",
+    "part": "part1",
+    "topic": "hometown",
+    "prompt": "Do you like your hometown?",
+    "hint": "Yes, I do. The main reason is... Also...",
+    "keywords": ["comfortable", "familiar", "food"],
+    "sampleAnswer": "Yes, I do. I really like my hometown because it feels familiar and comfortable to me."
+  },
+  {
+    "id": "part1_study_001",
+    "part": "part1",
+    "topic": "study",
+    "prompt": "Do you enjoy studying?",
+    "hint": "Yes, I do. I especially enjoy... because...",
+    "keywords": ["interesting", "improve", "future"],
+    "sampleAnswer": "Yes, I do. I enjoy studying when the topic is interesting and useful for my future."
+  },
+  {
+    "id": "part1_weekends_001",
+    "part": "part1",
+    "topic": "weekends",
+    "prompt": "What do you usually do on weekends?",
+    "hint": "I usually... because... Sometimes I also...",
+    "keywords": ["rest", "friends", "movies"],
+    "sampleAnswer": "I usually rest at home on weekends, and sometimes I watch movies or go out with my friends."
+  },
+  {
+    "id": "part1_music_001",
+    "part": "part1",
+    "topic": "music",
+    "prompt": "Do you like listening to music?",
+    "hint": "Yes, I do. I usually listen to... when...",
+    "keywords": ["relax", "pop", "commute"],
+    "sampleAnswer": "Yes, I do. I usually listen to pop music when I am commuting or trying to relax."
+  },
+  {
+    "id": "part1_friends_001",
+    "part": "part1",
+    "topic": "friends",
+    "prompt": "Do you often spend time with your friends?",
+    "hint": "Yes, I do. We usually... and I like it because...",
+    "keywords": ["chat", "support", "fun"],
+    "sampleAnswer": "Yes, I do. We usually chat, eat together, and support each other when we feel stressed."
+  },
+  {
+    "id": "part1_food_001",
+    "part": "part1",
+    "topic": "food",
+    "prompt": "Do you like cooking?",
+    "hint": "Yes, a little. I usually cook... because...",
+    "keywords": ["simple", "healthy", "family"],
+    "sampleAnswer": "Yes, a little. I usually cook simple food because it is healthier and cheaper."
+  },
+  {
+    "id": "part1_apps_001",
+    "part": "part1",
+    "topic": "apps",
+    "prompt": "What apps do you use the most?",
+    "hint": "I mostly use... because... I also use...",
+    "keywords": ["communication", "study", "daily life"],
+    "sampleAnswer": "I mostly use communication and study apps because they help me in my daily life."
+  },
+  {
+    "id": "part1_weather_001",
+    "part": "part1",
+    "topic": "weather",
+    "prompt": "What kind of weather do you like?",
+    "hint": "I like... weather because... It makes me feel...",
+    "keywords": ["sunny", "comfortable", "energetic"],
+    "sampleAnswer": "I like sunny weather because it makes me feel comfortable and energetic."
+  },
+  {
+    "id": "part1_sports_001",
+    "part": "part1",
+    "topic": "sports",
+    "prompt": "Do you enjoy doing sports?",
+    "hint": "Yes, I do. I usually... because...",
+    "keywords": ["healthy", "running", "stress"],
+    "sampleAnswer": "Yes, I do. I usually go running because it helps me stay healthy and reduce stress."
+  },
+  {
+    "id": "part1_gifts_001",
+    "part": "part1",
+    "topic": "gifts",
+    "prompt": "Do you like giving gifts to others?",
+    "hint": "Yes, I do. I think gifts can... and I usually...",
+    "keywords": ["care", "birthday", "surprise"],
+    "sampleAnswer": "Yes, I do. I think gifts can show care, especially on birthdays or special occasions."
+  }
+]

@@ -1,0 +1,24 @@
+<view class="screen">
+  <view class="card">
+    <view class="title">今天先开口一次</view>
+    <view class="subtitle">只做一题，先说出来，再改一次。</view>
+
+    <block wx:if="{{status === 'loading_question'}}">
+      <view class="status">正在加载今日题目...</view>
+    </block>
+
+    <block wx:elif="{{status === 'load_failed'}}">
+      <view class="error">{{errorMessage}}</view>
+      <view class="button secondary-button" bindtap="loadQuestion">重新加载</view>
+    </block>
+
+    <block wx:elif="{{status === 'ready' && question}}">
+      <view class="prompt">{{question.prompt}}</view>
+      <view class="hint">{{question.hint}}</view>
+      <view class="keywords">
+        <view wx:for="{{question.keywords}}" wx:key="*this" class="keyword">{{item}}</view>
+      </view>
+      <view class="button" bindtap="goToRecorder">开始录音</view>
+    </block>
+  </view>
+</view>

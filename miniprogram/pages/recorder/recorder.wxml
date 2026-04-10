@@ -1,0 +1,39 @@
+<view class="screen">
+  <view class="card">
+    <block wx:if="{{question}}">
+      <view class="title">{{isRetry ? '再答一次' : '先说出来'}}</view>
+      <view class="prompt">{{question.prompt}}</view>
+      <view class="hint">{{question.hint}}</view>
+      <view class="subtitle">系统会先帮你识别成文字，你也可以自己改。</view>
+      <textarea
+        class="transcript-input"
+        placeholder="识别结果会显示在这里；你也可以手动修改或直接输入"
+        value="{{transcriptText}}"
+        bindinput="onTranscriptInput"
+      />
+      <view wx:if="{{recognitionStatus}}" class="status">{{recognitionStatus}}</view>
+    </block>
+
+    <block wx:if="{{status === 'idle' || status === 'permission_failed' || status === 'submit_failed'}}">
+      <view wx:if="{{errorMessage}}" class="error">{{errorMessage}}</view>
+      <view wx:if="{{status === 'permission_failed'}}" class="button secondary-button" bindtap="openPermissionSettings">打开权限设置</view>
+      <view class="button" bindtap="startRecording">开始录音</view>
+    </block>
+
+    <block wx:elif="{{status === 'recording'}}">
+      <view class="title">{{countdownLabel}}</view>
+      <view class="status">正在录音，说 30 到 45 秒就够了。</view>
+      <view class="button secondary-button" bindtap="stopRecording">结束录音</view>
+    </block>
+
+    <block wx:elif="{{status === 'recorded' || status === 'uploading' || status === 'recognizing'}}">
+      <view class="status">{{uploadStatusMessage || countdownLabel}}</view>
+    </block>
+
+    <block wx:elif="{{status === 'recognized'}}">
+      <view class="transcript-label">识别文本</view>
+      <view class="status">{{recognitionStatus || '识别完成，请确认文本后提交。'}}</view>
+      <view class="button" bindtap="submitRecognizedTranscript">提交反馈</view>
+    </block>
+  </view>
+</view>

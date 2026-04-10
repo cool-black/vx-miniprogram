@@ -1,0 +1,16 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/recorder/recorder",
+    "pages/feedback/feedback"
+  ],
+  "window": {
+    "navigationBarTitleText": "雅思开口练",
+    "navigationBarBackgroundColor": "#fff8ef",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fff8ef",
+    "backgroundTextStyle": "light"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

@@ -16,13 +16,13 @@ function buildFeedbackFromTranscript(transcript) {
 
   return {
     overall: shortAnswer
-      ? "你已经回答了问题，下一步可以再补一个原因。"
-      : "你已经把核心意思表达出来了，下一步可以让表达更自然一点。",
-    relevance: "你的回答基本围绕题目，没有明显跑题。",
+      ? "先回答到题目了。下次再补一个原因会更完整。"
+      : "回答已经完整了。下次可以再说得更自然一点。",
+    relevance: "内容基本切题。",
     length: shortAnswer
-      ? "这次回答有点短，下次可以多补一个原因或小例子。"
-      : "这次回答长度对第一轮练习来说是合适的。",
-    naturalness: "整体能听懂，下一步可以把句子连接得更自然一些。"
+      ? "回答偏短。下次加一句原因或例子。"
+      : "长度够了。可以继续保持。",
+    naturalness: "表达清楚。下次把句子说得更顺一点。"
   };
 }
 
@@ -77,8 +77,8 @@ async function generateFeedbackWithOpenAI({ transcript, question }) {
     "你在给雅思口语初学者做中文反馈。",
     "只返回 JSON，不要返回 Markdown，不要加代码块。",
     "必须严格使用这四个 key：overall, relevance, length, naturalness。",
-    "每个 value 都必须是一句简短中文。",
-    "语气要鼓励、具体、低压力，像真人老师在说话。",
+    "每个 value 都必须是一句简短中文，最好 12 到 20 个字。",
+    "语气要鼓励、具体、低压力，给出一个能马上照做的小建议。",
     "",
     `题目: ${question.prompt}`,
     `回答骨架: ${question.hint}`,
@@ -131,8 +131,8 @@ async function generateFeedbackWithMiniMax({ transcript, question }) {
     "你在给雅思口语初学者做中文反馈。",
     "只返回 JSON，不要返回 Markdown，不要加代码块。",
     "必须严格使用这四个 key：overall, relevance, length, naturalness。",
-    "每个 value 都必须是一句简短中文。",
-    "语气要鼓励、具体、低压力，像真人老师在说话。",
+    "每个 value 都必须是一句简短中文，最好 12 到 20 个字。",
+    "语气要鼓励、具体、低压力，给出一个能马上照做的小建议。",
     "",
     `题目: ${question.prompt}`,
     `回答骨架: ${question.hint}`,

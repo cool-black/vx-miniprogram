@@ -4,27 +4,36 @@
     "part": "part1",
     "topic": "hometown",
     "prompt": "Do you like your hometown?",
-    "hint": "Yes, I do. The main reason is... Also...",
-    "keywords": ["comfortable", "familiar", "food"],
-    "sampleAnswer": "Yes, I do. I really like my hometown because it feels familiar and comfortable to me."
+    "hint": "Yes, I do. It is... and I like it because...",
+    "keywords": ["familiar", "quiet", "food"],
+    "sampleAnswer": "Yes, I do. My hometown is quiet and familiar, so I feel relaxed there."
+  },
+  {
+    "id": "part1_home_001",
+    "part": "part1",
+    "topic": "home",
+    "prompt": "Do you like your home?",
+    "hint": "Yes, I do. My home is... and I can...",
+    "keywords": ["comfortable", "rest", "family"],
+    "sampleAnswer": "Yes, I do. My home is comfortable, and I can rest there after a busy day."
   },
   {
     "id": "part1_study_001",
     "part": "part1",
     "topic": "study",
     "prompt": "Do you enjoy studying?",
-    "hint": "Yes, I do. I especially enjoy... because...",
-    "keywords": ["interesting", "improve", "future"],
-    "sampleAnswer": "Yes, I do. I enjoy studying when the topic is interesting and useful for my future."
+    "hint": "Yes, I do. I like studying because it helps me...",
+    "keywords": ["learn", "future", "improve"],
+    "sampleAnswer": "Yes, I do. I like studying because it helps me learn new things and improve myself."
   },
   {
     "id": "part1_weekends_001",
     "part": "part1",
     "topic": "weekends",
     "prompt": "What do you usually do on weekends?",
-    "hint": "I usually... because... Sometimes I also...",
+    "hint": "I usually... and sometimes I...",
     "keywords": ["rest", "friends", "movies"],
-    "sampleAnswer": "I usually rest at home on weekends, and sometimes I watch movies or go out with my friends."
+    "sampleAnswer": "I usually rest at home on weekends, and sometimes I watch movies or meet my friends."
   },
   {
     "id": "part1_music_001",
@@ -33,16 +42,16 @@
     "prompt": "Do you like listening to music?",
     "hint": "Yes, I do. I usually listen to... when...",
     "keywords": ["relax", "pop", "commute"],
-    "sampleAnswer": "Yes, I do. I usually listen to pop music when I am commuting or trying to relax."
+    "sampleAnswer": "Yes, I do. I usually listen to music when I want to relax or when I am on the way to school."
   },
   {
     "id": "part1_friends_001",
     "part": "part1",
     "topic": "friends",
     "prompt": "Do you often spend time with your friends?",
-    "hint": "Yes, I do. We usually... and I like it because...",
-    "keywords": ["chat", "support", "fun"],
-    "sampleAnswer": "Yes, I do. We usually chat, eat together, and support each other when we feel stressed."
+    "hint": "Yes, I do. We usually... together.",
+    "keywords": ["chat", "eat", "fun"],
+    "sampleAnswer": "Yes, I do. We usually chat, eat together, and have fun on the weekend."
   },
   {
     "id": "part1_food_001",
@@ -51,25 +60,25 @@
     "prompt": "Do you like cooking?",
     "hint": "Yes, a little. I usually cook... because...",
     "keywords": ["simple", "healthy", "family"],
-    "sampleAnswer": "Yes, a little. I usually cook simple food because it is healthier and cheaper."
+    "sampleAnswer": "Yes, a little. I usually cook simple food because it is healthy and easy to make."
   },
   {
     "id": "part1_apps_001",
     "part": "part1",
     "topic": "apps",
     "prompt": "What apps do you use the most?",
-    "hint": "I mostly use... because... I also use...",
-    "keywords": ["communication", "study", "daily life"],
-    "sampleAnswer": "I mostly use communication and study apps because they help me in my daily life."
+    "hint": "I use... the most because...",
+    "keywords": ["chat", "study", "daily life"],
+    "sampleAnswer": "I use chat and study apps the most because they help me in daily life."
   },
   {
     "id": "part1_weather_001",
     "part": "part1",
     "topic": "weather",
     "prompt": "What kind of weather do you like?",
-    "hint": "I like... weather because... It makes me feel...",
-    "keywords": ["sunny", "comfortable", "energetic"],
-    "sampleAnswer": "I like sunny weather because it makes me feel comfortable and energetic."
+    "hint": "I like... weather because...",
+    "keywords": ["sunny", "warm", "comfortable"],
+    "sampleAnswer": "I like sunny weather because it feels warm and comfortable."
   },
   {
     "id": "part1_sports_001",
@@ -77,7 +86,7 @@
     "topic": "sports",
     "prompt": "Do you enjoy doing sports?",
     "hint": "Yes, I do. I usually... because...",
-    "keywords": ["healthy", "running", "stress"],
+    "keywords": ["running", "healthy", "stress"],
     "sampleAnswer": "Yes, I do. I usually go running because it helps me stay healthy and reduce stress."
   },
   {
@@ -85,8 +94,44 @@
     "part": "part1",
     "topic": "gifts",
     "prompt": "Do you like giving gifts to others?",
-    "hint": "Yes, I do. I think gifts can... and I usually...",
+    "hint": "Yes, I do. Gifts can show...",
     "keywords": ["care", "birthday", "surprise"],
-    "sampleAnswer": "Yes, I do. I think gifts can show care, especially on birthdays or special occasions."
+    "sampleAnswer": "Yes, I do. I think gifts can show care, especially on birthdays."
+  },
+  {
+    "id": "part1_travel_001",
+    "part": "part1",
+    "topic": "travel",
+    "prompt": "Do you like traveling?",
+    "hint": "Yes, I do. I like traveling because I can...",
+    "keywords": ["relax", "new places", "experience"],
+    "sampleAnswer": "Yes, I do. I like traveling because I can relax and see new places."
+  },
+  {
+    "id": "part1_reading_001",
+    "part": "part1",
+    "topic": "reading",
+    "prompt": "Do you like reading?",
+    "hint": "Yes, I do. I usually read... because...",
+    "keywords": ["books", "learn", "quiet"],
+    "sampleAnswer": "Yes, I do. I usually read simple books because they help me learn and relax."
+  },
+  {
+    "id": "part1_time_001",
+    "part": "part1",
+    "topic": "time",
+    "prompt": "Do you think you manage your time well?",
+    "hint": "Yes, mostly. I usually... so I can...",
+    "keywords": ["plan", "busy", "finish"],
+    "sampleAnswer": "Yes, mostly. I usually make a plan so I can finish my work on time."
+  },
+  {
+    "id": "part1_shopping_001",
+    "part": "part1",
+    "topic": "shopping",
+    "prompt": "Do you like shopping?",
+    "hint": "Yes, a little. I usually buy... because...",
+    "keywords": ["online", "cheap", "convenient"],
+    "sampleAnswer": "Yes, a little. I usually shop online because it is convenient and saves time."
   }
 ]

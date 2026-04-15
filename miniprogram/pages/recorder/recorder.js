@@ -42,6 +42,7 @@ Page({
     transcriptText: "",
     transcriptMode: "manual",
     recognitionStatus: "",
+    liveRecognitionEnabled: false,
     isRetry: false,
     retryToken: "",
     parentAttemptId: "",
@@ -62,6 +63,8 @@ Page({
   isPageActive: false,
   speechProvider: null,
   activeSubmissionToken: 0,
+  liveRecognitionSession: null,
+  liveRecognitionFailed: false,
 
   onLoad(options) {
     const app = getApp();
@@ -81,6 +84,8 @@ Page({
     this.setData({
       question,
       transcriptMode: this.speechProvider.mode,
+      liveRecognitionEnabled:
+        Boolean(this.speechProvider?.supportsLiveRecognition && this.speechProvider.supportsLiveRecognition()),
       isRetry,
       retryToken: isRetry ? latestAttempt?.retryToken || "" : "",
       parentAttemptId: isRetry ? latestAttempt?.attemptId || "" : ""
@@ -185,7 +190,28 @@ Page({
       activeRecorderPage.handleRecorderError();
     });
 
+    if (typeof this.recorder.onFrameRecorded === "function") {
+      this.recorder.onFrameRecorded((frame) => {
+        if (!activeRecorderPage) return;
+        activeRecorderPage.handleRecorderFrame(frame);
+      });
+    }
+
     recorderEventsBound = true;
+  },
+
+  handleRecorderFrame(frame) {
+    if (!this.isPageActive || !this.liveRecognitionSession) return;
+
+    try {
+      this.liveRecognitionSession.appendAudioFrame(frame.frameBuffer);
+    } catch {
+      this.liveRecognitionFailed = true;
+      this.liveRecognitionSession = null;
+      this.setData({
+        recognitionStatus: "实时识别中断了，录音仍会保留，结束后可手动补全文字。"
+      });
+    }
   },
 
   handleRecorderStop(result) {
@@ -202,7 +228,7 @@ Page({
       isPlayingRecording: false,
       playbackStatus: this.tempFilePath ? "录音已保存，可以先试听。" : ""
     });
-    this.handleRecognitionAfterRecording();
+    this.handleRecognitionAfterRecording(result);
   },
 
   handleRecorderError() {
@@ -231,13 +257,47 @@ Page({
       this.stopRecordedAnswerPlayback();
       this.tempFilePath = "";
       this.recordingDurationMs = 0;
+      this.liveRecognitionFailed = false;
+      this.liveRecognitionSession = null;
       await authorizeRecordScope();
+
+      if (
+        this.speechProvider &&
+        this.speechProvider.supportsLiveRecognition &&
+        this.speechProvider.supportsLiveRecognition()
+      ) {
+        try {
+          this.liveRecognitionSession = await this.speechProvider.startLiveRecognition({
+            onStatus: (message) => {
+              if (!this.isPageActive) return;
+              this.setData({
+                recognitionStatus: message
+              });
+            },
+            onPartialTranscript: (transcript) => {
+              if (!this.isPageActive) return;
+              this.setData({
+                transcriptText: transcript,
+                recognitionStatus: transcript
+                  ? "实时识别中，你可以边说边看到文字。"
+                  : "实时识别已连接，正在等待语音..."
+              });
+            }
+          });
+        } catch (error) {
+          this.liveRecognitionFailed = true;
+          this.liveRecognitionSession = null;
+          this.setData({
+            recognitionStatus: error.message || "实时识别暂时不可用，会在录音后再试一次。"
+          });
+        }
+      }
+
       this.setData({
         status: "recording",
         permissionDenied: false,
         errorMessage: "",
         uploadStatusMessage: "",
-        recognitionStatus: "",
         transcriptText: "",
         seconds: 45,
         countdownLabel: "45s",
@@ -250,7 +310,8 @@ Page({
       this.startCountdown();
       this.recorder.start({
         duration: 45000,
-        format: "mp3"
+        format: "mp3",
+        frameSize: 16
       });
     } catch {
       this.setData({
@@ -286,9 +347,39 @@ Page({
       return;
     }
 
+    if (this.liveRecognitionSession && !this.liveRecognitionFailed) {
+      this.setData({
+        status: "recognizing",
+        recognitionStatus: "正在整理实时识别结果..."
+      });
+
+      try {
+        const result = await this.liveRecognitionSession.stop();
+        this.liveRecognitionSession = null;
+
+        this.setData({
+          status: "recognized",
+          transcriptText: result.transcript || this.data.transcriptText || "",
+          recognitionStatus: result.transcript
+            ? "实时识别完成，你可以先检查文本再提交。"
+            : "实时识别没有返回完整文本，你可以手动补充后再提交。"
+        });
+        return;
+      } catch (error) {
+        this.liveRecognitionSession = null;
+        this.liveRecognitionFailed = true;
+        this.setData({
+          recognitionStatus:
+            error.message || "实时识别失败了，会切回录音后识别。"
+        });
+      }
+    }
+
     this.setData({
       status: "recognizing",
-      recognitionStatus: "正在调用腾讯云识别..."
+      recognitionStatus: this.liveRecognitionFailed
+        ? "实时识别失败了，正在改用录音后识别..."
+        : "正在调用腾讯云识别..."
     });
 
     try {
@@ -468,6 +559,7 @@ Page({
     clearInterval(this.timer);
     this.clearProcessingTimers();
     this.destroyAnswerAudioContext();
+    this.liveRecognitionSession = null;
     if (activeRecorderPage === this) {
       activeRecorderPage = null;
     }
@@ -477,6 +569,7 @@ Page({
     this.isPageActive = false;
     this.stopRecordedAnswerPlayback();
     this.destroyAnswerAudioContext();
+    this.liveRecognitionSession = null;
     if (activeRecorderPage === this) {
       activeRecorderPage = null;
     }

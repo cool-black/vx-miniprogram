@@ -1,4 +1,12 @@
-const ENV_CONFIG = {
+let localOverrides = {};
+
+try {
+  localOverrides = require("./env.local");
+} catch {
+  localOverrides = {};
+}
+
+const DEFAULT_ENV_CONFIG = {
   // Transcript mode for the app:
   // - manual: user types the transcript by hand
   // - tencent: real-device Tencent ASR flow
@@ -8,8 +16,13 @@ const ENV_CONFIG = {
   devtoolsApiBaseUrl: "http://127.0.0.1:8787",
 
   // Real phones must call the computer's LAN IP on the same Wi-Fi/LAN.
-  // Update this when the backend host or network changes.
-  deviceApiBaseUrl: "http://192.168.1.5:8787"
+  // Override this in env.local.js instead of editing this tracked file.
+  deviceApiBaseUrl: "http://127.0.0.1:8787"
+};
+
+const ENV_CONFIG = {
+  ...DEFAULT_ENV_CONFIG,
+  ...localOverrides
 };
 
 function isDevtoolsPlatform() {
@@ -27,6 +40,7 @@ function resolveApiBaseUrl() {
 }
 
 module.exports = {
+  DEFAULT_ENV_CONFIG,
   ENV_CONFIG,
   resolveApiBaseUrl
 };

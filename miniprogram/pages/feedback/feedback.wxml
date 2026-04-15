@@ -9,18 +9,25 @@
       <view class="title">这次你已经开口了</view>
       <view class="subtitle">{{attempt.feedback.overall}}</view>
 
+      <view class="section-label">你的回答回放</view>
       <view class="hint">你的转写：{{attempt.transcript}}</view>
       <view wx:if="{{playbackStatus}}" class="playback-status">{{playbackStatus}}</view>
       <view wx:if="{{attempt.localAudioFilePath}}" class="button secondary-button" bindtap="toggleRecordedAnswerPlayback">
-        {{isPlayingRecording ? '停止试听' : '试听我的回答'}}
+        {{isPlayingRecordedAnswer ? '停止试听' : '试听我的回答'}}
       </view>
+      <view wx:if="{{playbackError}}" class="playback-error">{{playbackError}}</view>
 
       <view class="prompt">切题：{{attempt.feedback.relevance}}</view>
       <view class="prompt">长度：{{attempt.feedback.length}}</view>
       <view class="prompt">自然度：{{attempt.feedback.naturalness}}</view>
 
       <view class="recommended-title">推荐完整回答</view>
-      <view class="hint">{{attempt.recommendedAnswer || attempt.sampleAnswer}}</view>
+      <view class="hint">{{recommendedAnswerText}}</view>
+      <view wx:if="{{recommendedAnswerAudioUrl}}" class="playback-status">{{recommendedPlaybackStatus}}</view>
+      <view wx:if="{{recommendedAnswerAudioUrl}}" class="button secondary-button" bindtap="toggleRecommendedAnswerPlayback">
+        {{isLoadingRecommendedAnswer ? '加载推荐回答中...' : isPlayingRecommendedAnswer ? '停止播放' : '播放推荐回答'}}
+      </view>
+      <view wx:if="{{recommendedPlaybackError}}" class="playback-error">{{recommendedPlaybackError}}</view>
 
       <view wx:if="{{isLoadingNextQuestion}}" class="status">正在切换下一题...</view>
       <view wx:if="{{errorMessage}}" class="error">{{errorMessage}}</view>

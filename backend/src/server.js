@@ -1,9 +1,11 @@
 import http from "node:http";
-import { getNextQuestion, getTodayQuestion } from "./services/question-service.js";
+import { getNextQuestion, getQuestionById, getTodayQuestion } from "./services/question-service.js";
 import { createPracticeAttempt } from "./services/practice-service.js";
 import { createTencentAsrSession } from "./services/tencent-asr-service.js";
 import { persistAnalyticsEvent } from "./services/analytics-store.js";
-import { readJsonBody, sendJson } from "./utils/http.js";
+import { getAudioFilePath } from "./services/audio-cache.js";
+import { buildQuestionAudioUrls, ensureQuestionAudio } from "./services/tts-service.js";
+import { readJsonBody, sendAudioFile, sendJson } from "./utils/http.js";
 import { loadEnvFile } from "./utils/env.js";
 
 loadEnvFile();
@@ -18,11 +20,8 @@ function serializeQuestion(question) {
     prompt: question.prompt,
     hint: question.hint,
     keywords: question.keywords,
-    recommendedAnswer: question.sampleAnswer,
-    audio: {
-      promptAudioUrl: null,
-      recommendedAnswerAudioUrl: null
-    }
+    recommendedAnswer: question.recommendedAnswer || question.sampleAnswer,
+    audio: buildQuestionAudioUrls(question)
   };
 }
 
@@ -94,6 +93,34 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       question: serializeQuestion(question)
     });
+    return;
+  }
+
+  if (req.method === "GET" && /^\/questions\/[^/]+\/audio(?:\?|$)/.test(req.url || "")) {
+    const requestUrl = new URL(req.url, "http://localhost");
+    const pathnameParts = requestUrl.pathname.split("/");
+    const questionId = decodeURIComponent(pathnameParts[2] || "");
+    const type = requestUrl.searchParams.get("type") || "";
+
+    if (type !== "prompt" && type !== "recommendedAnswer") {
+      sendJson(res, 400, {
+        error: {
+          code: "invalid_audio_type",
+          message: "Audio type must be prompt or recommendedAnswer."
+        }
+      });
+      return;
+    }
+
+    const question = getQuestionById(questionId);
+    const audioResult = await ensureQuestionAudio({ question, type });
+
+    if (!audioResult.ok) {
+      sendJson(res, audioResult.statusCode, { error: audioResult.error });
+      return;
+    }
+
+    sendAudioFile(res, getAudioFilePath(audioResult.data.filename));
     return;
   }
 

@@ -4,6 +4,7 @@ import { transcribeAttempt } from "./transcription-service.js";
 import { generateFeedback } from "./feedback-service.js";
 import { persistAttemptAudio, persistAttemptRecord } from "./attempt-store.js";
 import { persistAnalyticsEvent } from "./analytics-store.js";
+import { buildQuestionAudioUrls } from "./tts-service.js";
 
 function isDevelopment() {
   return (process.env.NODE_ENV || "development") !== "production";
@@ -77,7 +78,8 @@ export async function createPracticeAttempt(body) {
       topic: question.topic,
       prompt: question.prompt,
       hint: question.hint,
-      keywords: question.keywords
+      keywords: question.keywords,
+      audio: buildQuestionAudioUrls(question)
     },
     transcript,
     feedback,

@@ -25,6 +25,9 @@ function createManualProvider() {
     isAvailable() {
       return true;
     },
+    supportsLiveRecognition() {
+      return false;
+    },
     async recognize() {
       return {
         transcript: "",
@@ -35,10 +38,173 @@ function createManualProvider() {
 }
 
 function createTencentProvider({ fetchTencentSession }) {
+  function collectTranscript(transcriptByIndex) {
+    return Array.from(transcriptByIndex.entries())
+      .sort(([left], [right]) => left - right)
+      .map(([, item]) => item)
+      .join("")
+      .trim();
+  }
+
+  async function createLiveRecognitionSession({
+    onStatus,
+    onPartialTranscript
+  }) {
+    const session = await fetchTencentSession();
+    const transcriptByIndex = new Map();
+    const pendingFrames = [];
+    const socketTask = wx.connectSocket({
+      url: session.wsUrl,
+      timeout: 20000
+    });
+
+    let socketOpen = false;
+    let stopped = false;
+    let completed = false;
+    let endSignalSent = false;
+
+    let resolveFinalResult = null;
+    let rejectFinalResult = null;
+
+    const finalResultPromise = new Promise((resolve, reject) => {
+      resolveFinalResult = resolve;
+      rejectFinalResult = reject;
+    });
+
+    const finish = (payload) => {
+      if (completed) return;
+      completed = true;
+      try {
+        socketTask.close({});
+      } catch {}
+
+      if (payload instanceof Error) {
+        rejectFinalResult(payload);
+        return;
+      }
+
+      resolveFinalResult(payload);
+    };
+
+    const sendEndSignalIfNeeded = () => {
+      if (!socketOpen || completed || !stopped || endSignalSent || pendingFrames.length > 0) {
+        return;
+      }
+
+      endSignalSent = true;
+      socketTask.send({
+        data: JSON.stringify({ type: "end" }),
+        fail: () => finish(new Error("实时识别结束信号发送失败。"))
+      });
+    };
+
+    const flushPendingFrames = () => {
+      if (!socketOpen || completed) return;
+
+      while (pendingFrames.length > 0) {
+        const frame = pendingFrames.shift();
+        socketTask.send({
+          data: frame,
+          fail: () => finish(new Error("实时音频分片发送失败。"))
+        });
+      }
+
+      sendEndSignalIfNeeded();
+    };
+
+    socketTask.onOpen(() => {
+      socketOpen = true;
+      if (typeof onStatus === "function") {
+        onStatus("实时识别已连接，边说边转文字...");
+      }
+      flushPendingFrames();
+    });
+
+    socketTask.onMessage((event) => {
+      try {
+        const payload = JSON.parse(event.data);
+
+        if (payload.code && payload.code !== 0) {
+          finish(new Error(payload.message || "腾讯云实时识别失败。"));
+          return;
+        }
+
+        const result = payload?.result;
+        const text = result?.voice_text_str || "";
+
+        if (text) {
+          const resultIndex = Number.isInteger(result?.index)
+            ? result.index
+            : transcriptByIndex.size;
+          transcriptByIndex.set(resultIndex, text);
+
+          const mergedTranscript = collectTranscript(transcriptByIndex);
+          if (typeof onPartialTranscript === "function") {
+            onPartialTranscript(mergedTranscript);
+          }
+          if (typeof onStatus === "function") {
+            onStatus("正在实时识别，你可以边说边看文字。");
+          }
+        }
+
+        if (Number(payload.final) === 1) {
+          finish({
+            transcript: collectTranscript(transcriptByIndex),
+            source: "tencent-live"
+          });
+        }
+      } catch {
+        finish(new Error("实时识别结果解析失败。"));
+      }
+    });
+
+    socketTask.onError(() => {
+      finish(new Error("腾讯云实时识别连接失败。"));
+    });
+
+    socketTask.onClose(() => {
+      if (!completed && transcriptByIndex.size > 0) {
+        finish({
+          transcript: collectTranscript(transcriptByIndex),
+          source: "tencent-live"
+        });
+      } else if (!completed && stopped) {
+        finish(new Error("腾讯云实时识别过早关闭。"));
+      }
+    });
+
+    return {
+      appendAudioFrame(frameBuffer) {
+        if (completed || !frameBuffer) return;
+        pendingFrames.push(frameBuffer);
+        flushPendingFrames();
+      },
+      stop() {
+        if (completed) {
+          return Promise.resolve({
+            transcript: collectTranscript(transcriptByIndex),
+            source: "tencent-live"
+          });
+        }
+
+        stopped = true;
+        flushPendingFrames();
+        sendEndSignalIfNeeded();
+        return finalResultPromise;
+      }
+    };
+  }
+
   return {
     mode: "tencent",
     isAvailable() {
       return typeof wx.connectSocket === "function";
+    },
+    supportsLiveRecognition() {
+      return true;
+    },
+    async startLiveRecognition(options = {}) {
+      return createLiveRecognitionSession(options);
     },
     async recognize({ filePath, durationMs, onStatus }) {
       const session = await fetchTencentSession();
@@ -114,11 +280,7 @@ function createTencentProvider({ fetchTencentSession }) {
 
             if (Number(payload.final) === 1) {
               finish({
-                transcript: Array.from(transcriptByIndex.entries())
-                  .sort(([left], [right]) => left - right)
-                  .map(([, item]) => item)
-                  .join("")
-                  .trim(),
+                transcript: collectTranscript(transcriptByIndex),
                 source: "tencent"
               });
             }
@@ -134,11 +296,7 @@ function createTencentProvider({ fetchTencentSession }) {
         socketTask.onClose(() => {
           if (!completed && transcriptByIndex.size > 0) {
             finish({
-              transcript: Array.from(transcriptByIndex.entries())
-                .sort(([left], [right]) => left - right)
-                .map(([, item]) => item)
-                .join("")
-                .trim(),
+              transcript: collectTranscript(transcriptByIndex),
               source: "tencent"
             });
           }

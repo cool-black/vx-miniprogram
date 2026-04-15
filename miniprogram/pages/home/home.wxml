@@ -18,6 +18,13 @@
       <view class="keywords">
         <view wx:for="{{question.keywords}}" wx:key="*this" class="keyword">{{item}}</view>
       </view>
+      <view wx:if="{{canPlayPromptAudio}}">
+        <view wx:if="{{promptAudioStatus}}" class="status">{{promptAudioStatus}}</view>
+        <view wx:if="{{promptAudioError}}" class="error">{{promptAudioError}}</view>
+        <view class="button secondary-button" bindtap="togglePromptAudioPlayback">
+          {{isPlayingPromptAudio ? '停止播放' : '听题目'}}
+        </view>
+      </view>
       <view wx:if="{{errorMessage}}" class="error">{{errorMessage}}</view>
       <view wx:if="{{isSwitchingQuestion}}" class="status">正在切换下一题...</view>
       <view class="button secondary-button" bindtap="loadNextQuestion">换一题</view>

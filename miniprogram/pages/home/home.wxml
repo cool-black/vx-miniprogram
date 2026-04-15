@@ -18,6 +18,9 @@
       <view class="keywords">
         <view wx:for="{{question.keywords}}" wx:key="*this" class="keyword">{{item}}</view>
       </view>
+      <view wx:if="{{errorMessage}}" class="error">{{errorMessage}}</view>
+      <view wx:if="{{isSwitchingQuestion}}" class="status">正在切换下一题...</view>
+      <view class="button secondary-button" bindtap="loadNextQuestion">换一题</view>
       <view class="button" bindtap="goToRecorder">开始录音</view>
     </block>
   </view>

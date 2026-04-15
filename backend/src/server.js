@@ -1,5 +1,5 @@
 import http from "node:http";
-import { getTodayQuestion } from "./services/question-service.js";
+import { getNextQuestion, getTodayQuestion } from "./services/question-service.js";
 import { createPracticeAttempt } from "./services/practice-service.js";
 import { createTencentAsrSession } from "./services/tencent-asr-service.js";
 import { persistAnalyticsEvent } from "./services/analytics-store.js";
@@ -10,6 +10,21 @@ loadEnvFile();
 
 const PORT = Number(process.env.PORT || 8787);
 const PRACTICE_TIMEOUT_MS = Number(process.env.PRACTICE_TIMEOUT_MS || 15000);
+
+function serializeQuestion(question) {
+  return {
+    id: question.id,
+    topic: question.topic,
+    prompt: question.prompt,
+    hint: question.hint,
+    keywords: question.keywords,
+    recommendedAnswer: question.sampleAnswer,
+    audio: {
+      promptAudioUrl: null,
+      recommendedAnswerAudioUrl: null
+    }
+  };
+}
 
 function withTimeout(promise, timeoutMs, timeoutPayload) {
   return Promise.race([
@@ -45,13 +60,39 @@ const server = http.createServer(async (req, res) => {
     }
 
     sendJson(res, 200, {
-      question: {
-        id: question.id,
-        topic: question.topic,
-        prompt: question.prompt,
-        hint: question.hint,
-        keywords: question.keywords
-      }
+      question: serializeQuestion(question)
+    });
+    return;
+  }
+
+  if (req.method === "GET" && req.url.startsWith("/questions/next")) {
+    const requestUrl = new URL(req.url, "http://localhost");
+    const afterQuestionId = requestUrl.searchParams.get("after") || "";
+
+    if (afterQuestionId.trim().length === 0) {
+      sendJson(res, 400, {
+        error: {
+          code: "invalid_question_id",
+          message: "Current question id is required."
+        }
+      });
+      return;
+    }
+
+    const question = getNextQuestion(afterQuestionId);
+
+    if (!question) {
+      sendJson(res, 400, {
+        error: {
+          code: "invalid_question_id",
+          message: "Current question id is invalid."
+        }
+      });
+      return;
+    }
+
+    sendJson(res, 200, {
+      question: serializeQuestion(question)
     });
     return;
   }

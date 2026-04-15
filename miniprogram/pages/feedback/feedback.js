@@ -1,4 +1,4 @@
-const { trackPracticeEvent } = require("../../services/api");
+const { fetchNextQuestion, trackPracticeEvent } = require("../../services/api");
 
 function sendFeedbackEvent(name, extra = {}) {
   const app = getApp();
@@ -14,16 +14,21 @@ Page({
   data: {
     attempt: null,
     status: "loading_feedback",
-    errorMessage: ""
+    errorMessage: "",
+    isLoadingNextQuestion: false
   },
 
+  isPageActive: false,
+
   onShow() {
+    this.isPageActive = true;
     const attempt = getApp().globalData.latestAttempt;
 
     if (!attempt || !attempt.feedback) {
       this.setData({
         status: "failed",
-        errorMessage: "反馈结果丢失了，请返回首页再试一次。"
+        errorMessage: "反馈结果丢失了，请返回首页再试一次。",
+        isLoadingNextQuestion: false
       });
       return;
     }
@@ -31,7 +36,8 @@ Page({
     this.setData({
       attempt,
       status: "ready",
-      errorMessage: ""
+      errorMessage: "",
+      isLoadingNextQuestion: false
     });
 
     sendFeedbackEvent("feedback_viewed", {
@@ -55,6 +61,46 @@ Page({
     wx.redirectTo({
       url: "/pages/recorder/recorder?retry=1"
     });
+  },
+
+  onHide() {
+    this.isPageActive = false;
+  },
+
+  onUnload() {
+    this.isPageActive = false;
+  },
+
+  async nextQuestion() {
+    const attempt = this.data.attempt;
+
+    if (!attempt || this.data.isLoadingNextQuestion) {
+      return;
+    }
+
+    this.setData({
+      isLoadingNextQuestion: true,
+      errorMessage: ""
+    });
+
+    try {
+      const response = await fetchNextQuestion(attempt.question?.id || "");
+      const app = getApp();
+      app.globalData.currentQuestion = response.question;
+
+      if (!this.isPageActive) {
+        return;
+      }
+
+      wx.redirectTo({
+        url: "/pages/recorder/recorder"
+      });
+    } catch (error) {
+      this.setData({
+        isLoadingNextQuestion: false,
+        errorMessage: error.message || "切换下一题失败，请稍后再试。"
+      });
+    }
   },
 
   backHome() {

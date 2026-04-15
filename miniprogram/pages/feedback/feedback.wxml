@@ -17,6 +17,9 @@
 
       <view class="hint">参考答案：{{attempt.sampleAnswer}}</view>
 
+      <view wx:if="{{isLoadingNextQuestion}}" class="status">正在切换下一题...</view>
+      <view wx:if="{{errorMessage}}" class="error">{{errorMessage}}</view>
+      <view class="button" bindtap="nextQuestion">下一题</view>
       <view class="button" bindtap="retryAttempt">再答一次</view>
       <view class="button secondary-button" bindtap="backHome">返回首页</view>
     </block>

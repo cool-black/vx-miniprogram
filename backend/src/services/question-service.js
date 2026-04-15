@@ -15,3 +15,21 @@ export function getTodayQuestion() {
 export function getQuestionById(questionId) {
   return validQuestions.find((question) => question.id === questionId) || null;
 }
+
+export function getNextQuestion(afterQuestionId) {
+  if (typeof afterQuestionId !== "string" || afterQuestionId.trim().length === 0) {
+    return null;
+  }
+
+  if (validQuestions.length === 0) {
+    return null;
+  }
+
+  const currentIndex = validQuestions.findIndex((question) => question.id === afterQuestionId);
+
+  if (currentIndex === -1) {
+    return null;
+  }
+
+  return validQuestions[(currentIndex + 1) % validQuestions.length];
+}

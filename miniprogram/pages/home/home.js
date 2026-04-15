@@ -1,4 +1,8 @@
-const { fetchTodayQuestion, trackPracticeEvent } = require("../../services/api");
+const {
+  fetchTodayQuestion,
+  fetchNextQuestion,
+  trackPracticeEvent
+} = require("../../services/api");
 
 function sendPageEvent(name, extra = {}) {
   const app = getApp();
@@ -14,7 +18,8 @@ Page({
   data: {
     status: "idle",
     question: null,
-    errorMessage: ""
+    errorMessage: "",
+    isSwitchingQuestion: false
   },
 
   onLoad() {
@@ -24,7 +29,8 @@ Page({
   async loadQuestion() {
     this.setData({
       status: "loading_question",
-      errorMessage: ""
+      errorMessage: "",
+      isSwitchingQuestion: false
     });
 
     try {
@@ -34,7 +40,8 @@ Page({
 
       this.setData({
         status: "ready",
-        question: response.question
+        question: response.question,
+        isSwitchingQuestion: false
       });
 
       sendPageEvent("home_viewed", {
@@ -43,13 +50,43 @@ Page({
     } catch (error) {
       this.setData({
         status: "load_failed",
-        errorMessage: error.message || "题目加载失败，请稍后重试。"
+        errorMessage: error.message || "题目加载失败，请稍后重试。",
+        isSwitchingQuestion: false
+      });
+    }
+  },
+
+  async loadNextQuestion() {
+    const question = this.data.question;
+
+    if (!question || this.data.isSwitchingQuestion) {
+      return;
+    }
+
+    this.setData({
+      errorMessage: "",
+      isSwitchingQuestion: true
+    });
+
+    try {
+      const response = await fetchNextQuestion(question.id);
+      const app = getApp();
+      app.globalData.currentQuestion = response.question;
+
+      this.setData({
+        question: response.question,
+        isSwitchingQuestion: false
+      });
+    } catch (error) {
+      this.setData({
+        errorMessage: error.message || "切换下一题失败，请稍后重试。",
+        isSwitchingQuestion: false
       });
     }
   },
 
   goToRecorder() {
-    if (!this.data.question) return;
+    if (!this.data.question || this.data.isSwitchingQuestion) return;
     wx.navigateTo({
       url: `/pages/recorder/recorder?questionId=${this.data.question.id}`
     });

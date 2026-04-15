@@ -82,6 +82,7 @@ export async function createPracticeAttempt(body) {
     transcript,
     feedback,
     sampleAnswer: question.sampleAnswer,
+    recommendedAnswer: question.recommendedAnswer || question.sampleAnswer,
     retryToken,
     audioStored: Boolean(storedAudio),
     parentAttemptId: body.parentAttemptId || null,

@@ -1,3 +1,5 @@
+import fs from "node:fs";
+
 export function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
@@ -6,6 +8,33 @@ export function sendJson(res, statusCode, payload) {
     "Access-Control-Allow-Headers": "Content-Type"
   });
   res.end(JSON.stringify(payload));
+}
+
+export function sendAudioFile(res, filepath) {
+  res.writeHead(200, {
+    "Content-Type": "audio/mpeg",
+    "Cache-Control": "public, max-age=31536000, immutable",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type"
+  });
+
+  const stream = fs.createReadStream(filepath);
+  stream.on("error", () => {
+    if (!res.headersSent) {
+      sendJson(res, 404, {
+        error: {
+          code: "audio_not_found",
+          message: "Audio file is unavailable."
+        }
+      });
+      return;
+    }
+
+    res.destroy();
+  });
+
+  stream.pipe(res);
 }
 
 export function readJsonBody(req) {

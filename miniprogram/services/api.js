@@ -43,6 +43,12 @@ function fetchTodayQuestion() {
   return request({ url: "/questions/today" });
 }
 
+function fetchNextQuestion(afterQuestionId) {
+  return request({
+    url: `/questions/next?after=${encodeURIComponent(afterQuestionId || "")}`
+  });
+}
+
 function fetchTencentAsrSession() {
   return request({ url: "/asr/tencent/session" });
 }
@@ -65,6 +71,7 @@ function trackPracticeEvent(payload) {
 
 module.exports = {
   fetchTodayQuestion,
+  fetchNextQuestion,
   fetchTencentAsrSession,
   createPracticeAttempt,
   trackPracticeEvent

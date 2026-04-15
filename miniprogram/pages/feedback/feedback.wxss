@@ -1,3 +1,40 @@
 .prompt {
   margin-top: 18rpx;
 }
+
+.section-label {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: #8f6b43;
+}
+
+.section-card {
+  margin-top: 24rpx;
+  padding: 20rpx;
+  border-radius: 18rpx;
+  background: #fff2e3;
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #4f3b24;
+}
+
+.recommended-title {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: #8f6b43;
+}
+
+.playback-status {
+  margin-top: 14rpx;
+  margin-bottom: 16rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #7c5d3a;
+}
+
+.playback-error {
+  margin-top: 12rpx;
+}

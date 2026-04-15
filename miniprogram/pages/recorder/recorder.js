@@ -46,13 +46,17 @@ Page({
     retryToken: "",
     parentAttemptId: "",
     canRetrySubmit: false,
-    submissionTimedOut: false
+    submissionTimedOut: false,
+    canPlayRecording: false,
+    isPlayingRecording: false,
+    playbackStatus: ""
   },
 
   timer: null,
   processingHintTimer: null,
   processingTimeoutTimer: null,
   recorder: null,
+  answerAudioContext: null,
   tempFilePath: "",
   recordingDurationMs: 0,
   isPageActive: false,
@@ -80,6 +84,83 @@ Page({
       isRetry,
       retryToken: isRetry ? latestAttempt?.retryToken || "" : "",
       parentAttemptId: isRetry ? latestAttempt?.attemptId || "" : ""
+    });
+  },
+
+  ensureAnswerAudioContext() {
+    if (this.answerAudioContext) {
+      return this.answerAudioContext;
+    }
+
+    const audioContext = wx.createInnerAudioContext();
+
+    audioContext.onPlay(() => {
+      if (!this.isPageActive) return;
+      this.setData({
+        isPlayingRecording: true,
+        playbackStatus: "正在播放你的回答。"
+      });
+    });
+
+    audioContext.onEnded(() => {
+      if (!this.isPageActive) return;
+      this.setData({
+        isPlayingRecording: false,
+        playbackStatus: "播放结束了，可以再听一遍。"
+      });
+    });
+
+    audioContext.onStop(() => {
+      if (!this.isPageActive) return;
+      this.setData({
+        isPlayingRecording: false
+      });
+    });
+
+    audioContext.onError((error) => {
+      if (!this.isPageActive) return;
+      this.setData({
+        isPlayingRecording: false,
+        playbackStatus:
+          error?.errMsg || "录音回放失败了，这次可以先继续看文本。"
+      });
+    });
+
+    this.answerAudioContext = audioContext;
+    return this.answerAudioContext;
+  },
+
+  playRecordedAnswer() {
+    if (!this.tempFilePath) {
+      this.setData({
+        playbackStatus: "当前没有可回放的录音文件。"
+      });
+      return;
+    }
+
+    const audioContext = this.ensureAnswerAudioContext();
+    audioContext.stop();
+    audioContext.src = this.tempFilePath;
+    audioContext.play();
+  },
+
+  toggleRecordedAnswerPlayback() {
+    if (this.data.isPlayingRecording) {
+      this.stopRecordedAnswerPlayback();
+      return;
+    }
+
+    this.playRecordedAnswer();
+  },
+
+  stopRecordedAnswerPlayback() {
+    if (!this.answerAudioContext) {
+      return;
+    }
+
+    this.answerAudioContext.stop();
+    this.setData({
+      isPlayingRecording: false
     });
   },
 
@@ -116,7 +197,10 @@ Page({
       status: "recorded",
       countdownLabel: "录音完成",
       canRetrySubmit: false,
-      submissionTimedOut: false
+      submissionTimedOut: false,
+      canPlayRecording: Boolean(this.tempFilePath),
+      isPlayingRecording: false,
+      playbackStatus: this.tempFilePath ? "录音已保存，可以先试听。" : ""
     });
     this.handleRecognitionAfterRecording();
   },
@@ -128,7 +212,10 @@ Page({
       status: "submit_failed",
       uploadStatusMessage: "",
       errorMessage: "录音失败了，请重新试一次。",
-      canRetrySubmit: false
+      canRetrySubmit: false,
+      canPlayRecording: false,
+      isPlayingRecording: false,
+      playbackStatus: ""
     });
   },
 
@@ -141,6 +228,7 @@ Page({
 
     try {
       this.activeSubmissionToken += 1;
+      this.stopRecordedAnswerPlayback();
       this.tempFilePath = "";
       this.recordingDurationMs = 0;
       await authorizeRecordScope();
@@ -154,7 +242,10 @@ Page({
         seconds: 45,
         countdownLabel: "45s",
         canRetrySubmit: false,
-        submissionTimedOut: false
+        submissionTimedOut: false,
+        canPlayRecording: false,
+        isPlayingRecording: false,
+        playbackStatus: ""
       });
       this.startCountdown();
       this.recorder.start({
@@ -167,7 +258,10 @@ Page({
         permissionDenied: true,
         uploadStatusMessage: "",
         errorMessage: "录音权限被拒绝了，请打开权限设置后再试一次。",
-        canRetrySubmit: false
+        canRetrySubmit: false,
+        canPlayRecording: false,
+        isPlayingRecording: false,
+        playbackStatus: ""
       });
     }
   },
@@ -280,6 +374,7 @@ Page({
     this.startProcessingTimers(submissionToken);
 
     try {
+      this.stopRecordedAnswerPlayback();
       const audioBase64 = this.tempFilePath ? await readFileAsBase64(this.tempFilePath) : "";
 
       const response = await createPracticeAttempt({
@@ -294,7 +389,11 @@ Page({
         mockTranscript: ""
       });
 
-      getApp().globalData.latestAttempt = response;
+      getApp().globalData.latestAttempt = {
+        ...response,
+        localAudioFilePath: this.tempFilePath || "",
+        localAudioDurationMs: this.recordingDurationMs
+      };
       this.clearProcessingTimers();
 
       if (!this.isPageActive || submissionToken !== this.activeSubmissionToken || this.data.submissionTimedOut) {
@@ -354,10 +453,21 @@ Page({
     this.processingTimeoutTimer = null;
   },
 
+  destroyAnswerAudioContext() {
+    if (!this.answerAudioContext) {
+      return;
+    }
+
+    this.answerAudioContext.stop();
+    this.answerAudioContext.destroy();
+    this.answerAudioContext = null;
+  },
+
   onUnload() {
     this.isPageActive = false;
     clearInterval(this.timer);
     this.clearProcessingTimers();
+    this.destroyAnswerAudioContext();
     if (activeRecorderPage === this) {
       activeRecorderPage = null;
     }
@@ -365,6 +475,8 @@ Page({
 
   onHide() {
     this.isPageActive = false;
+    this.stopRecordedAnswerPlayback();
+    this.destroyAnswerAudioContext();
     if (activeRecorderPage === this) {
       activeRecorderPage = null;
     }

@@ -33,12 +33,19 @@ function sendPageEvent(name, extra = {}) {
   }).catch(() => {});
 }
 
+function configureAudioContext(audioContext) {
+  audioContext.obeyMuteSwitch = false;
+  audioContext.volume = 1;
+  return audioContext;
+}
+
 Page({
   data: {
     status: "idle",
     question: null,
     promptAudioUrl: "",
     canPlayPromptAudio: false,
+    isLoadingPromptAudio: false,
     isPlayingPromptAudio: false,
     promptAudioStatus: "",
     promptAudioError: "",
@@ -47,27 +54,71 @@ Page({
   },
 
   promptAudioContext: null,
+  promptAudioLoadingTimer: null,
   isPageActive: false,
+  shouldAnnouncePromptAudioStop: false,
+
+  clearPromptAudioLoadingTimer() {
+    if (!this.promptAudioLoadingTimer) {
+      return;
+    }
+
+    clearTimeout(this.promptAudioLoadingTimer);
+    this.promptAudioLoadingTimer = null;
+  },
+
+  resetPromptAudioState(extra = {}) {
+    this.clearPromptAudioLoadingTimer();
+    this.shouldAnnouncePromptAudioStop = false;
+    this.setData({
+      isLoadingPromptAudio: false,
+      isPlayingPromptAudio: false,
+      ...extra
+    });
+  },
 
   ensurePromptAudioContext() {
     if (this.promptAudioContext) {
       return this.promptAudioContext;
     }
 
-    const audioContext = wx.createInnerAudioContext();
+    const audioContext = configureAudioContext(wx.createInnerAudioContext());
 
     audioContext.onPlay(() => {
       if (!this.isPageActive) return;
+      this.clearPromptAudioLoadingTimer();
       this.setData({
+        isLoadingPromptAudio: false,
         isPlayingPromptAudio: true,
         promptAudioError: "",
         promptAudioStatus: "正在播放题目音频。"
       });
     });
 
+    audioContext.onWaiting(() => {
+      if (!this.isPageActive) return;
+      this.clearPromptAudioLoadingTimer();
+      this.promptAudioLoadingTimer = setTimeout(() => {
+        this.promptAudioLoadingTimer = null;
+
+        if (!this.isPageActive) {
+          return;
+        }
+
+        this.setData({
+          isLoadingPromptAudio: true,
+          isPlayingPromptAudio: false,
+          promptAudioStatus: "题目音频正在加载。"
+        });
+      }, 120);
+    });
+
     audioContext.onEnded(() => {
       if (!this.isPageActive) return;
+      this.clearPromptAudioLoadingTimer();
+      this.shouldAnnouncePromptAudioStop = false;
       this.setData({
+        isLoadingPromptAudio: false,
         isPlayingPromptAudio: false,
         promptAudioStatus: "题目音频播放结束了。"
       });
@@ -75,15 +126,24 @@ Page({
 
     audioContext.onStop(() => {
       if (!this.isPageActive) return;
+      this.clearPromptAudioLoadingTimer();
+      const promptAudioStatus = this.shouldAnnouncePromptAudioStop
+        ? "题目音频已停止。"
+        : this.data.promptAudioStatus;
+      this.shouldAnnouncePromptAudioStop = false;
       this.setData({
+        isLoadingPromptAudio: false,
         isPlayingPromptAudio: false,
-        promptAudioStatus: "题目音频已停止。"
+        promptAudioStatus
       });
     });
 
     audioContext.onError((error) => {
       if (!this.isPageActive) return;
+      this.clearPromptAudioLoadingTimer();
+      this.shouldAnnouncePromptAudioStop = false;
       this.setData({
+        isLoadingPromptAudio: false,
         isPlayingPromptAudio: false,
         promptAudioError: error?.errMsg || "题目音频播放失败了。"
       });
@@ -95,12 +155,19 @@ Page({
 
   stopPromptAudioPlayback() {
     if (!this.promptAudioContext) {
+      this.resetPromptAudioState({
+        promptAudioStatus: "题目音频已停止。"
+      });
       return;
     }
 
+    this.clearPromptAudioLoadingTimer();
+    this.shouldAnnouncePromptAudioStop = true;
     this.promptAudioContext.stop();
     this.setData({
-      isPlayingPromptAudio: false
+      isLoadingPromptAudio: false,
+      isPlayingPromptAudio: false,
+      promptAudioStatus: "题目音频已停止。"
     });
   },
 
@@ -109,8 +176,15 @@ Page({
       return;
     }
 
+    this.clearPromptAudioLoadingTimer();
+    this.shouldAnnouncePromptAudioStop = false;
     this.promptAudioContext.destroy();
     this.promptAudioContext = null;
+  },
+
+  resetPromptAudioPlayback() {
+    this.destroyPromptAudioContext();
+    this.resetPromptAudioState();
   },
 
   playPromptAudio() {
@@ -123,18 +197,19 @@ Page({
       return;
     }
 
+    this.destroyPromptAudioContext();
     const audioContext = this.ensurePromptAudioContext();
     this.setData({
       promptAudioError: "",
       promptAudioStatus: "正在准备题目音频。"
     });
-    audioContext.stop();
+    this.shouldAnnouncePromptAudioStop = false;
     audioContext.src = audioUrl;
     audioContext.play();
   },
 
   togglePromptAudioPlayback() {
-    if (this.data.isPlayingPromptAudio) {
+    if (this.data.isPlayingPromptAudio || this.data.isLoadingPromptAudio) {
       this.stopPromptAudioPlayback();
       return;
     }
@@ -153,23 +228,23 @@ Page({
 
   onHide() {
     this.isPageActive = false;
-    this.stopPromptAudioPlayback();
+    this.resetPromptAudioPlayback();
   },
 
   onUnload() {
     this.isPageActive = false;
-    this.stopPromptAudioPlayback();
-    this.destroyPromptAudioContext();
+    this.resetPromptAudioPlayback();
   },
 
   async loadQuestion() {
-    this.stopPromptAudioPlayback();
+    this.resetPromptAudioPlayback();
     this.setData({
       status: "loading_question",
       errorMessage: "",
       isSwitchingQuestion: false,
       promptAudioUrl: "",
       canPlayPromptAudio: false,
+      isLoadingPromptAudio: false,
       isPlayingPromptAudio: false,
       promptAudioStatus: "",
       promptAudioError: ""
@@ -186,6 +261,7 @@ Page({
         question: response.question,
         promptAudioUrl,
         canPlayPromptAudio: Boolean(promptAudioUrl),
+        isLoadingPromptAudio: false,
         isPlayingPromptAudio: false,
         promptAudioStatus: promptAudioUrl ? "可以试听题目音频。" : "",
         promptAudioError: "",
@@ -211,7 +287,7 @@ Page({
       return;
     }
 
-    this.stopPromptAudioPlayback();
+    this.resetPromptAudioPlayback();
     this.setData({
       errorMessage: "",
       isSwitchingQuestion: true,
@@ -228,6 +304,7 @@ Page({
         question: response.question,
         promptAudioUrl,
         canPlayPromptAudio: Boolean(promptAudioUrl),
+        isLoadingPromptAudio: false,
         isPlayingPromptAudio: false,
         promptAudioStatus: promptAudioUrl ? "可以试听题目音频。" : "",
         promptAudioError: "",
@@ -243,7 +320,7 @@ Page({
 
   goToRecorder() {
     if (!this.data.question || this.data.isSwitchingQuestion) return;
-    this.stopPromptAudioPlayback();
+    this.resetPromptAudioPlayback();
     wx.navigateTo({
       url: `/pages/recorder/recorder?questionId=${this.data.question.id}`
     });

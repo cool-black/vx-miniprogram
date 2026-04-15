@@ -4,7 +4,7 @@ import { createPracticeAttempt } from "./services/practice-service.js";
 import { createTencentAsrSession } from "./services/tencent-asr-service.js";
 import { persistAnalyticsEvent } from "./services/analytics-store.js";
 import { getAudioFilePath } from "./services/audio-cache.js";
-import { buildQuestionAudioUrls, ensureQuestionAudio } from "./services/tts-service.js";
+import { buildQuestionAudioUrls, ensureQuestionAudio, warmQuestionAudio } from "./services/tts-service.js";
 import { readJsonBody, sendAudioFile, sendJson } from "./utils/http.js";
 import { loadEnvFile } from "./utils/env.js";
 
@@ -23,6 +23,10 @@ function serializeQuestion(question) {
     recommendedAnswer: question.recommendedAnswer || question.sampleAnswer,
     audio: buildQuestionAudioUrls(question)
   };
+}
+
+function warmQuestionPromptAudio(question) {
+  warmQuestionAudio(question, "prompt");
 }
 
 function withTimeout(promise, timeoutMs, timeoutPayload) {
@@ -61,6 +65,7 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       question: serializeQuestion(question)
     });
+    warmQuestionPromptAudio(question);
     return;
   }
 
@@ -93,6 +98,7 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       question: serializeQuestion(question)
     });
+    warmQuestionPromptAudio(question);
     return;
   }
 

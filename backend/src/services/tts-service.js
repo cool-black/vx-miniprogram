@@ -11,6 +11,7 @@ const TENCENT_TTS_ENDPOINT = `https://${TENCENT_TTS_HOST}`;
 const TENCENT_TTS_VERSION = "2019-08-23";
 const TENCENT_TTS_ACTION = "TextToVoice";
 const DEFAULT_REGION = "ap-guangzhou";
+const inflightAudioRequests = new Map();
 
 function getTencentTtsConfig() {
   return {
@@ -94,73 +95,16 @@ export function buildQuestionAudioUrls(question) {
   };
 }
 
-export async function ensureQuestionAudio({ question, type }) {
-  if (!question) {
-    return {
-      ok: false,
-      statusCode: 404,
-      error: {
-        code: "question_unavailable",
-        message: "Question is unavailable."
-      }
-    };
-  }
-
-  const config = getTencentTtsConfig();
-
-  if (!config.secretId || !config.secretKey) {
-    return {
-      ok: false,
-      statusCode: 503,
-      error: {
-        code: "tencent_tts_not_configured",
-        message: "Tencent TTS is not configured yet."
-      }
-    };
-  }
-
-  const text = resolveQuestionText(question, type);
-
-  if (!text) {
-    return {
-      ok: false,
-      statusCode: 400,
-      error: {
-        code: "audio_text_unavailable",
-        message: "There is no text available for this audio."
-      }
-    };
-  }
-
-  const filename = buildAudioFilename({
-    questionId: question.id,
+function buildAudioCacheKey({ questionId, type, text }) {
+  return buildAudioFilename({
+    questionId,
     type,
     text
   });
+}
 
-  if (await hasCachedAudio(filename)) {
-    return {
-      ok: true,
-      statusCode: 200,
-      data: {
-        cached: true,
-        filename,
-        publicPath: getAudioPublicPath(filename)
-      }
-    };
-  }
-
+async function generateQuestionAudio({ config, filename, payload, question, type }) {
   const timestamp = Math.floor(Date.now() / 1000);
-  const payload = JSON.stringify({
-    Text: text,
-    SessionId: `${question.id}-${type}-${timestamp}`,
-    ModelType: 1,
-    VoiceType: config.voiceType,
-    PrimaryLanguage: 1,
-    SampleRate: config.sampleRate,
-    Codec: config.codec
-  });
-
   const response = await fetch(TENCENT_TTS_ENDPOINT, {
     method: "POST",
     headers: {
@@ -217,7 +161,118 @@ export async function ensureQuestionAudio({ question, type }) {
     data: {
       cached: false,
       filename: audioFile.filename,
-      publicPath: audioFile.publicPath
+      publicPath: audioFile.publicPath,
+      questionId: question.id,
+      type
     }
   };
+}
+
+export async function ensureQuestionAudio({ question, type }) {
+  if (!question) {
+    return {
+      ok: false,
+      statusCode: 404,
+      error: {
+        code: "question_unavailable",
+        message: "Question is unavailable."
+      }
+    };
+  }
+
+  const config = getTencentTtsConfig();
+
+  if (!config.secretId || !config.secretKey) {
+    return {
+      ok: false,
+      statusCode: 503,
+      error: {
+        code: "tencent_tts_not_configured",
+        message: "Tencent TTS is not configured yet."
+      }
+    };
+  }
+
+  const text = resolveQuestionText(question, type);
+
+  if (!text) {
+    return {
+      ok: false,
+      statusCode: 400,
+      error: {
+        code: "audio_text_unavailable",
+        message: "There is no text available for this audio."
+      }
+    };
+  }
+
+  const filename = buildAudioCacheKey({
+    questionId: question.id,
+    type,
+    text
+  });
+
+  if (await hasCachedAudio(filename)) {
+    return {
+      ok: true,
+      statusCode: 200,
+      data: {
+        cached: true,
+        filename,
+        publicPath: getAudioPublicPath(filename)
+      }
+    };
+  }
+
+  const payload = JSON.stringify({
+    Text: text,
+    SessionId: `${question.id}-${type}-${Date.now()}`,
+    ModelType: 1,
+    VoiceType: config.voiceType,
+    PrimaryLanguage: 1,
+    SampleRate: config.sampleRate,
+    Codec: config.codec
+  });
+
+  if (inflightAudioRequests.has(filename)) {
+    return inflightAudioRequests.get(filename);
+  }
+
+  const requestPromise = generateQuestionAudio({
+    config,
+    filename,
+    payload,
+    question,
+    type
+  }).finally(() => {
+    inflightAudioRequests.delete(filename);
+  });
+
+  inflightAudioRequests.set(filename, requestPromise);
+  return requestPromise;
+}
+
+export function warmQuestionAudio(question, type = "prompt") {
+  if (!question) {
+    return;
+  }
+
+  ensureQuestionAudio({ question, type })
+    .then((result) => {
+      if (result?.ok) {
+        return;
+      }
+
+      console.warn(
+        `[tts] warm question audio failed, questionId=${question.id}, type=${type}, code=${result?.error?.code || "unknown"}`
+      );
+    })
+    .catch((error) => {
+      const message =
+        error instanceof Error ? error.message : typeof error === "string" ? error : "unknown error";
+
+      console.warn(
+        `[tts] warm question audio failed, questionId=${question.id}, type=${type}, message=${message}`
+      );
+    });
 }

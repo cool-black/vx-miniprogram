@@ -22,7 +22,7 @@
         <view wx:if="{{promptAudioStatus}}" class="status">{{promptAudioStatus}}</view>
         <view wx:if="{{promptAudioError}}" class="error">{{promptAudioError}}</view>
         <view class="button secondary-button" bindtap="togglePromptAudioPlayback">
-          {{isPlayingPromptAudio ? '停止播放' : '听题目'}}
+          {{(isPlayingPromptAudio || isLoadingPromptAudio) ? '停止播放' : '听题目'}}
         </view>
       </view>
       <view wx:if="{{errorMessage}}" class="error">{{errorMessage}}</view>

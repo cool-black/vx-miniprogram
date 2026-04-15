@@ -23,7 +23,7 @@
 
       <view class="recommended-title">推荐完整回答</view>
       <view class="hint">{{recommendedAnswerText}}</view>
-      <view wx:if="{{recommendedAnswerAudioUrl}}" class="playback-status">{{recommendedPlaybackStatus}}</view>
+      <view wx:if="{{recommendedPlaybackStatus}}" class="playback-status">{{recommendedPlaybackStatus}}</view>
       <view wx:if="{{recommendedAnswerAudioUrl}}" class="button secondary-button" bindtap="toggleRecommendedAnswerPlayback">
         {{isLoadingRecommendedAnswer ? '加载推荐回答中...' : isPlayingRecommendedAnswer ? '停止播放' : '播放推荐回答'}}
       </view>

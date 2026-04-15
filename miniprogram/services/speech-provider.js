@@ -38,6 +38,8 @@ function createManualProvider() {
 }
 
 function createTencentProvider({ fetchTencentSession }) {
+  const LIVE_END_SETTLE_MS = 450;
+
   function collectTranscript(transcriptByIndex) {
     return Array.from(transcriptByIndex.entries())
       .sort(([left], [right]) => left - right)
@@ -48,7 +50,8 @@ function createTencentProvider({ fetchTencentSession }) {
 
   async function createLiveRecognitionSession({
     onStatus,
-    onPartialTranscript
+    onPartialTranscript,
+    onFailure
   }) {
     const session = await fetchTencentSession();
     const transcriptByIndex = new Map();
@@ -62,6 +65,8 @@ function createTencentProvider({ fetchTencentSession }) {
     let stopped = false;
     let completed = false;
     let endSignalSent = false;
+    let stopTimer = null;
+    let lastFrameAt = Date.now();
 
     let resolveFinalResult = null;
     let rejectFinalResult = null;
@@ -74,11 +79,16 @@ function createTencentProvider({ fetchTencentSession }) {
     const finish = (payload) => {
       if (completed) return;
       completed = true;
+      clearTimeout(stopTimer);
+      stopTimer = null;
       try {
         socketTask.close({});
       } catch {}
 
       if (payload instanceof Error) {
+        if (typeof onFailure === "function") {
+          onFailure(payload);
+        }
         rejectFinalResult(payload);
         return;
       }
@@ -86,8 +96,26 @@ function createTencentProvider({ fetchTencentSession }) {
       resolveFinalResult(payload);
     };
 
+    const scheduleEndSignal = () => {
+      clearTimeout(stopTimer);
+
+      if (!stopped || completed || endSignalSent) {
+        return;
+      }
+
+      stopTimer = setTimeout(() => {
+        sendEndSignalIfNeeded();
+      }, LIVE_END_SETTLE_MS);
+    };
+
     const sendEndSignalIfNeeded = () => {
       if (!socketOpen || completed || !stopped || endSignalSent || pendingFrames.length > 0) {
+        return;
+      }
+
+      const quietForMs = Date.now() - lastFrameAt;
+      if (quietForMs < LIVE_END_SETTLE_MS) {
+        scheduleEndSignal();
         return;
       }
 
@@ -105,11 +133,19 @@ function createTencentProvider({ fetchTencentSession }) {
         const frame = pendingFrames.shift();
         socketTask.send({
           data: frame,
+          success: () => {
+            lastFrameAt = Date.now();
+            if (stopped) {
+              scheduleEndSignal();
+            }
+          },
           fail: () => finish(new Error("实时音频分片发送失败。"))
         });
       }
 
-      sendEndSignalIfNeeded();
+      if (stopped) {
+        scheduleEndSignal();
+      }
     };
 
     socketTask.onOpen(() => {
@@ -176,6 +212,7 @@ function createTencentProvider({ fetchTencentSession }) {
     return {
       appendAudioFrame(frameBuffer) {
         if (completed || !frameBuffer) return;
+        lastFrameAt = Date.now();
         pendingFrames.push(frameBuffer);
         flushPendingFrames();
       },
@@ -189,7 +226,7 @@ function createTencentProvider({ fetchTencentSession }) {
 
         stopped = true;
         flushPendingFrames();
-        sendEndSignalIfNeeded();
+        scheduleEndSignal();
         return finalResultPromise;
       }
     };

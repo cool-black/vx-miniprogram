@@ -20,11 +20,17 @@
 
 - `PHASE2_PRD.md` 已完成。
 - `PHASE2_TECH_SPEC.md` 已完成。
-- 尚未修改功能代码。
+- 第一批功能代码已通过 `git worktree` 并行开发并合并回 `main`。
 - 发现当前环境的 Git 对该仓库报 `dubious ownership`，后续开 worktree 前需先处理。
 
 ### Next Step
 
-- 向用户汇报文档结论
-- 等用户确认范围和 TTS 策略
-- 再进入 `git worktree` 并行开发阶段
+- 补充第二批 TTS 的产品与技术决策
+- 将腾讯云 TTS 方案写入文档
+- 拆出第二批并行开发任务
+
+### TTS Decision Update
+
+- 用户已确认第二批采用腾讯云 TTS。
+- 方案确定为：后端调用腾讯云 `TextToVoice`，生成并缓存题目音频与推荐完整回答音频。
+- 小程序前端不直接接腾讯云，只消费后端返回的音频地址。

@@ -38,6 +38,12 @@ function resolveAudioUrl(rawUrl) {
   return `${baseUrl}${rawUrl}`;
 }
 
+function configureAudioContext(audioContext) {
+  audioContext.obeyMuteSwitch = false;
+  audioContext.volume = 1;
+  return audioContext;
+}
+
 Page({
   data: {
     attempt: null,
@@ -65,7 +71,7 @@ Page({
       return this.recordedAnswerAudioContext;
     }
 
-    const audioContext = wx.createInnerAudioContext();
+    const audioContext = configureAudioContext(wx.createInnerAudioContext());
 
     audioContext.onPlay(() => {
       if (!this.isPageActive) return;
@@ -160,7 +166,7 @@ Page({
       return this.recommendedAnswerAudioContext;
     }
 
-    const audioContext = wx.createInnerAudioContext();
+    const audioContext = configureAudioContext(wx.createInnerAudioContext());
 
     audioContext.onPlay(() => {
       if (!this.isPageActive) return;
@@ -327,7 +333,9 @@ Page({
       playbackError: "",
       isPlayingRecommendedAnswer: false,
       isLoadingRecommendedAnswer: false,
-      recommendedPlaybackStatus: recommendedAnswerAudioUrl ? "可以播放推荐回答。" : "",
+      recommendedPlaybackStatus: recommendedAnswerAudioUrl
+        ? "可以播放推荐回答。"
+        : "推荐回答音频暂时不可用，你可以先参考下面这段文本。",
       recommendedPlaybackError: ""
     });
 
@@ -378,7 +386,7 @@ Page({
       }
 
       wx.redirectTo({
-        url: "/pages/recorder/recorder"
+        url: "/pages/home/home"
       });
     } catch (error) {
       this.setData({

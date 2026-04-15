@@ -146,11 +146,9 @@ recommendedAnswer: string
 
 ## 4.4 题目音频 / 推荐回答音频
 
-### 现实判断
+### 选型结论
 
-当前仓库没有 TTS 能力。
-
-因此需要先抽象，再决定实现方式。
+第二批明确采用腾讯云 TTS，由后端统一调用，小程序前端不直连腾讯云接口。
 
 ### 建议抽象
 
@@ -163,39 +161,42 @@ type QuestionAudioPayload = {
 };
 ```
 
-### 可选实现路径
+### 实现路径
 
-#### 路径 A，预生成音频
+#### 路径：后端动态生成 + 本地缓存
 
-- 在内容侧为每道题生成音频文件
-- 后端直接返回音频 URL
+- 后端接入腾讯云 `TextToVoice`
+- 首次请求时生成音频文件
+- 将结果缓存到本地运行时目录
+- 后续直接返回缓存 URL
 
-优点：
-- 播放稳定
-- 成本和延迟更可控
+### 推荐原因
 
-缺点：
-- 内容改动时要重新生成音频
+- 比预生成内容更灵活，不需要先批量离线产出全部题库音频
+- 比直接在前端调用更安全，不暴露腾讯云密钥
+- 对当前题库规模和推荐完整回答长度来说，性能和成本都可接受
 
-#### 路径 B，动态 TTS
+### 未来升级
 
-- 后端接入 TTS 服务
-- 首次请求时生成并缓存
+如果后续需要更快开播，可升级为腾讯云实时 TTS websocket 能力，但不作为首版范围
 
-优点：
-- 灵活
+### 腾讯云能力边界
 
-缺点：
-- 依赖外部服务
-- 更容易引入慢请求和失败路径
+首版使用：
 
-### 推荐
+- `TextToVoice` 生成短文本音频
 
-第一轮推荐走：
+后续可选：
 
-`先预留 schema -> 再决定是否引入预生成音频`
+- `TextToStreamAudioWS`
+- `TextToStreamAudioWSv2`
 
-不要在当前代码里硬接一个未验证的 TTS 服务。
+### 服务边界
+
+- 小程序只拿后端返回的 `audioUrl`
+- 鉴权签名只存在后端
+- 音频缓存目录与 `.runtime` 同级管理
+- 同一题目的题目音频和推荐回答音频按文本 hash 做缓存 key
 
 ## 4.5 实时识别
 
@@ -296,6 +297,7 @@ type Question = {
 
 - 后端读取时兼容旧字段 `sampleAnswer`
 - 响应层统一输出 `recommendedAnswer`
+- 响应层统一补齐 `audio.promptAudioUrl` 和 `audio.recommendedAnswerAudioUrl`
 
 ## 5.2 PracticeAttemptResponse
 
@@ -328,6 +330,48 @@ type PracticeAttemptResponse = {
 };
 ```
 
+## 5.3 TTS API 建议
+
+新增接口：
+
+```text
+GET /questions/:questionId/audio?type=prompt
+GET /questions/:questionId/audio?type=recommendedAnswer
+```
+
+### 响应
+
+```json
+{
+  "audioUrl": "/runtime/audio/question-part1_music_001-prompt.mp3",
+  "cached": true
+}
+```
+
+### 服务实现建议
+
+- `backend/src/services/tts-service.js`
+  - 封装腾讯云 `TextToVoice`
+  - 负责文本 hash、缓存命中、文件写入
+- `backend/src/services/audio-cache.js`
+  - 负责缓存路径与静态资源映射
+- `backend/src/server.js`
+  - 新增音频生成接口
+  - 暴露静态音频目录
+
+### 环境变量
+
+建议新增：
+
+```text
+TTS_PROVIDER=tencent
+TENCENT_TTS_APP_ID=
+TENCENT_TTS_SECRET_ID=
+TENCENT_TTS_SECRET_KEY=
+TENCENT_TTS_VOICE_TYPE=
+TENCENT_TTS_SAMPLE_RATE=
+```
+
 ## 6. Failure Modes
 
 | New codepath | Failure mode | Test needed | Error handling | User-visible |
@@ -336,6 +380,9 @@ type PracticeAttemptResponse = {
 | own answer replay | local temp file expired | yes | yes | yes |
 | question audio | audio url empty | yes | yes | yes |
 | recommended answer audio | TTS missing / asset missing | yes | yes | yes |
+| tts generation | tencent auth invalid | yes | yes | yes |
+| tts generation | cache write fails | yes | yes | yes |
+| tts generation | remote request timeout | yes | yes | yes |
 | live recognition | socket open fails | yes | yes | yes |
 | live recognition | partial transcript disorder | yes | partial | yes |
 | live recognition | stop recording before final packet | yes | yes | yes |
@@ -344,6 +391,7 @@ type PracticeAttemptResponse = {
 
 - 如果直接做“音频播放按钮”但不校验音频 URL，会形成静默失败
 - 如果实时识别没有回退到手动 transcript，会在腾讯链路失败时直接堵死主流程
+- 如果 TTS 直接放在前端，会暴露云密钥并放大滥用风险
 
 ## 7. Test Plan
 
@@ -360,6 +408,9 @@ type PracticeAttemptResponse = {
 - 音频按钮无 URL 时不崩
 - 本地录音文件回放正常
 - 真机环境下回放正常
+- 首次请求题目音频时可成功生成并播放
+- 第二次请求同一音频时命中缓存
+- 腾讯云凭据缺失时前端看到可理解错误提示
 
 ## 7.3 实时识别测试
 
@@ -375,6 +426,7 @@ type PracticeAttemptResponse = {
 - 历史练习播放列表
 - TTS 供应商抽象到多厂商切换
 - 发音评分和逐词纠错
+- 流式 TTS 边生成边播放
 
 ## 9. Worktree Parallelization Strategy
 
@@ -385,7 +437,7 @@ type PracticeAttemptResponse = {
 | next question flow | `backend/src/services`, `backend/src/server`, `miniprogram/pages/home`, `miniprogram/pages/feedback`, `miniprogram/services` | — |
 | answer playback | `miniprogram/pages/recorder`, `miniprogram/pages/feedback`, `miniprogram/services` | — |
 | recommended answer upgrade | `backend/src/content`, `backend/src/services`, `miniprogram/pages/feedback` | — |
-| audio schema / TTS abstraction | `backend/src/schemas`, `backend/src/services`, `miniprogram/pages/home`, `miniprogram/pages/feedback` | recommended answer upgrade |
+| Tencent TTS audio generation | `backend/src/services`, `backend/src/server`, `miniprogram/pages/home`, `miniprogram/pages/feedback`, `miniprogram/services` | recommended answer upgrade |
 | live recognition | `miniprogram/services/speech-provider`, `miniprogram/services/recorder`, `miniprogram/pages/recorder` | — |
 | docs / QA sync | repo root docs | all feature lanes |
 
@@ -394,7 +446,7 @@ type PracticeAttemptResponse = {
 - Lane A: next question flow
 - Lane B: answer playback + feedback UI upgrade
 - Lane C: live recognition
-- Lane D: audio schema / TTS abstraction
+- Lane D: Tencent TTS audio generation + front-end playback
 - Lane E: docs / QA sync
 
 ### Execution order
@@ -407,7 +459,7 @@ type PracticeAttemptResponse = {
 
 - Lane B 和 Lane C 都会碰 `miniprogram/pages/recorder`
 - Lane A 和 Lane D 都会碰 `miniprogram/pages/feedback`
-- Lane D 和内容字段升级会碰 `backend/src/services`
+- Lane D 会碰 `backend/src/server` 和 `backend/src/services`
 
 建议：
 
@@ -429,9 +481,11 @@ type PracticeAttemptResponse = {
 
 - 题目音频
 - 推荐回答音频
+- 腾讯云 TTS 接入
+- 缓存与静态音频访问
 
 原因很简单：
 
 第一批能直接提升练习体验，而且依赖现有基础能力。
 
-第二批依赖 TTS 决策，不适合在没有技术选型确认前直接下代码。
+第二批的 TTS 选型已经确认，因此可以直接进入实现，但建议单独开 worktree，避免和第一批录音链路继续相互冲突。

@@ -6,7 +6,8 @@ function getTencentAsrConfig() {
     secretId: process.env.TENCENT_ASR_SECRET_ID || "",
     secretKey: process.env.TENCENT_ASR_SECRET_KEY || "",
     engineModelType: process.env.TENCENT_ASR_ENGINE_MODEL || "16k_zh",
-    voiceFormat: Number(process.env.TENCENT_ASR_VOICE_FORMAT || "8")
+    voiceFormat: Number(process.env.TENCENT_ASR_VOICE_FORMAT || "8"),
+    needVad: Number(process.env.TENCENT_ASR_NEED_VAD || "0")
   };
 }
 
@@ -41,7 +42,7 @@ export function createTencentAsrSession() {
   const params = {
     engine_model_type: config.engineModelType,
     expired,
-    needvad: 1,
+    needvad: config.needVad,
     nonce,
     secretid: config.secretId,
     timestamp,
@@ -67,7 +68,8 @@ export function createTencentAsrSession() {
       wsUrl: `wss://asr.cloud.tencent.com/asr/v2/${config.appId}?${query}&signature=${encodeURIComponent(signa)}`,
       config: {
         engineModelType: config.engineModelType,
-        voiceFormat: config.voiceFormat
+        voiceFormat: config.voiceFormat,
+        needVad: config.needVad
       }
     }
   };

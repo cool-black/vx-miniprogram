@@ -6,8 +6,18 @@ function getFeedbackConfig() {
     openaiApiKey: process.env.OPENAI_API_KEY || "",
     minimaxApiKey: process.env.MINIMAX_API_KEY || "",
     minimaxBaseUrl: process.env.MINIMAX_BASE_URL || "https://api.minimax.chat/v1",
-    model: process.env.FEEDBACK_MODEL || "MiniMax-M2.7"
+    model: process.env.FEEDBACK_MODEL || "MiniMax-M2.7",
+    providerTimeoutMs: Number(process.env.FEEDBACK_PROVIDER_TIMEOUT_MS || 7000)
   };
+}
+
+function withTimeout(promise, timeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs);
+    })
+  ]);
 }
 
 function buildFeedbackFromTranscript(transcript) {
@@ -194,18 +204,24 @@ export async function generateFeedback({ transcript, question }) {
   let errorReason = "";
 
   if (config.provider === "openai") {
-    rawFeedback = await generateFeedbackWithOpenAI({ transcript, question });
+    rawFeedback = await withTimeout(
+      generateFeedbackWithOpenAI({ transcript, question }),
+      config.providerTimeoutMs
+    );
     if (rawFeedback) {
       source = "openai";
     } else {
-      errorReason = "openai_empty_or_invalid";
+      errorReason = "openai_empty_invalid_or_timeout";
     }
   } else if (config.provider === "minimax") {
-    rawFeedback = await generateFeedbackWithMiniMax({ transcript, question });
+    rawFeedback = await withTimeout(
+      generateFeedbackWithMiniMax({ transcript, question }),
+      config.providerTimeoutMs
+    );
     if (rawFeedback) {
       source = "minimax";
     } else {
-      errorReason = "minimax_empty_or_invalid";
+      errorReason = "minimax_empty_invalid_or_timeout";
     }
   }
 

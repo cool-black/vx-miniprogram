@@ -12,13 +12,6 @@
         bindinput="onTranscriptInput"
       />
       <view wx:if="{{recognitionStatus}}" class="status">{{recognitionStatus}}</view>
-      <view wx:if="{{canPlayRecording}}" class="playback-card">
-        <view class="playback-title">本次回答回放</view>
-        <view class="playback-status">{{playbackStatus || '你可以先听一遍，再确认文本。'}}</view>
-        <view class="button secondary-button" bindtap="toggleRecordedAnswerPlayback">
-          {{isPlayingRecording ? '停止播放' : '播放我的回答'}}
-        </view>
-      </view>
     </block>
 
     <block wx:if="{{status === 'idle' || status === 'permission_failed' || status === 'submit_failed'}}">
@@ -44,16 +37,22 @@
       <view wx:if="{{canPlayRecording}}" class="button secondary-button" bindtap="toggleRecordedAnswerPlayback">
         {{isPlayingRecording ? '停止试听' : '试听我的回答'}}
       </view>
+      <view wx:if="{{status === 'recorded'}}" class="button secondary-button" bindtap="skipToNextQuestion">
+        {{isLoadingNextQuestion ? '正在换一题...' : '直接换一题'}}
+      </view>
     </block>
 
     <block wx:elif="{{status === 'recognized'}}">
       <view class="transcript-label">识别文本</view>
-      <view class="status">{{recognitionStatus || '识别完成，请确认文本后提交。'}}</view>
+      <view class="status">{{recognitionStatus || '识别完成，你可以选择请教AI老师，或者直接换一题。'}}</view>
       <view wx:if="{{canPlayRecording && playbackStatus}}" class="status">{{playbackStatus}}</view>
       <view wx:if="{{canPlayRecording}}" class="button secondary-button" bindtap="toggleRecordedAnswerPlayback">
         {{isPlayingRecording ? '停止试听' : '试听我的回答'}}
       </view>
-      <view class="button" bindtap="submitRecognizedTranscript">提交反馈</view>
+      <view wx:if="{{isLoadingNextQuestion}}" class="status">正在切换下一题...</view>
+      <view wx:if="{{errorMessage}}" class="error">{{errorMessage}}</view>
+      <view class="button" bindtap="submitRecognizedTranscript">请教AI老师</view>
+      <view class="button secondary-button" bindtap="skipToNextQuestion">直接换一题</view>
     </block>
   </view>
 </view>

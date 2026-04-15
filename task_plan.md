@@ -12,7 +12,8 @@
 | 2 | complete | 基于 CEO/Eng review 框架审查需求，明确范围、风险、取舍 |
 | 3 | complete | 产出产品文档，定义用户价值、范围、成功标准、非目标 |
 | 4 | complete | 产出技术文档，定义架构改动、接口、状态机、并行开发方案 |
-| 5 | in_progress | 形成编码前的实施建议，等待用户确认后再开始开发 |
+| 5 | complete | 形成编码前的实施建议，并完成第一批并行开发 |
+| 6 | in_progress | 确认第二批腾讯云 TTS 方案并拆解新的并行开发任务 |
 
 ## Key Decisions
 
@@ -20,6 +21,7 @@
 - 使用 `plan-ceo-review` 和 `plan-eng-review` 的评审框架，但不进入 Plan mode 的逐节问答流程。
 - 本轮只做文档与方案，不改功能代码。
 - 后续编码时优先使用 `git worktree` 按模块并行推进。
+- 第二批音频能力采用腾讯云 TTS，后端生成并缓存，小程序前端只播放音频 URL。
 
 ## Expected Deliverables
 
@@ -28,6 +30,7 @@
 - `progress.md`
 - `PHASE2_PRD.md`
 - `PHASE2_TECH_SPEC.md`
+- 第二批 TTS 并行开发拆分
 
 ## Risks
 
@@ -35,3 +38,4 @@
 - “实时识别”会显著改变录音与识别链路，需要在技术方案里明确回退策略。
 - 当前已有 PRD 是 v0 验证版，新需求会把产品从“最小闭环”推向“带强化练习能力的 v0.5”。
 - 当前 Git 环境存在 `dubious ownership`，后续真正执行 `git worktree` 前需要先处理 `safe.directory`。
+- 腾讯云 TTS 接入会引入新的密钥、缓存和静态文件服务面，需要在实现前明确安全边界。

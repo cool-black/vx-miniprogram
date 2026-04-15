@@ -1,5 +1,6 @@
 const {
   createPracticeAttempt,
+  fetchNextQuestion,
   fetchTencentAsrSession,
   trackPracticeEvent
 } = require("../../services/api");
@@ -30,6 +31,15 @@ function sendRecorderEvent(name, extra = {}) {
   }).catch(() => {});
 }
 
+function configureAudioContext(audioContext) {
+  audioContext.obeyMuteSwitch = false;
+  audioContext.volume = 1;
+  return audioContext;
+}
+
+const LIVE_HINT_IDLE_MS = 5000;
+const LIVE_HINT_CHECK_MS = 1000;
+
 Page({
   data: {
     status: "idle",
@@ -50,12 +60,14 @@ Page({
     submissionTimedOut: false,
     canPlayRecording: false,
     isPlayingRecording: false,
-    playbackStatus: ""
+    playbackStatus: "",
+    isLoadingNextQuestion: false
   },
 
   timer: null,
   processingHintTimer: null,
   processingTimeoutTimer: null,
+  liveHintTimer: null,
   recorder: null,
   answerAudioContext: null,
   tempFilePath: "",
@@ -65,6 +77,8 @@ Page({
   activeSubmissionToken: 0,
   liveRecognitionSession: null,
   liveRecognitionFailed: false,
+  lastTranscriptUpdateAt: 0,
+  lastLiveHintAt: 0,
 
   onLoad(options) {
     const app = getApp();
@@ -97,7 +111,7 @@ Page({
       return this.answerAudioContext;
     }
 
-    const audioContext = wx.createInnerAudioContext();
+    const audioContext = configureAudioContext(wx.createInnerAudioContext());
 
     audioContext.onPlay(() => {
       if (!this.isPageActive) return;
@@ -175,6 +189,39 @@ Page({
     });
   },
 
+  startLiveHintMonitor() {
+    this.stopLiveHintMonitor();
+    this.lastTranscriptUpdateAt = Date.now();
+    this.lastLiveHintAt = 0;
+
+    this.liveHintTimer = setInterval(() => {
+      if (!this.isPageActive || this.data.status !== "recording") {
+        return;
+      }
+
+      if (!this.data.liveRecognitionEnabled || this.liveRecognitionFailed) {
+        return;
+      }
+
+      const idleForMs = Date.now() - this.lastTranscriptUpdateAt;
+      const hintedRecently = Date.now() - this.lastLiveHintAt < LIVE_HINT_IDLE_MS;
+
+      if (idleForMs >= LIVE_HINT_IDLE_MS && !hintedRecently) {
+        this.lastLiveHintAt = Date.now();
+        this.setData({
+          recognitionStatus: this.data.transcriptText
+            ? "如果你在思考，可以继续说下一句，实时识别会更稳定。"
+            : "如果你暂时停顿了，可以继续开口，实时识别会更稳定。"
+        });
+      }
+    }, LIVE_HINT_CHECK_MS);
+  },
+
+  stopLiveHintMonitor() {
+    clearInterval(this.liveHintTimer);
+    this.liveHintTimer = null;
+  },
+
   bindRecorderEvents() {
     if (recorderEventsBound) {
       return;
@@ -219,6 +266,7 @@ Page({
     this.tempFilePath = result.tempFilePath || "";
     this.recordingDurationMs = result.duration || Math.max((45 - this.data.seconds) * 1000, 1000);
     clearInterval(this.timer);
+    this.stopLiveHintMonitor();
     this.setData({
       status: "recorded",
       countdownLabel: "录音完成",
@@ -234,6 +282,7 @@ Page({
   handleRecorderError() {
     if (!this.isPageActive) return;
     clearInterval(this.timer);
+    this.stopLiveHintMonitor();
     this.setData({
       status: "submit_failed",
       uploadStatusMessage: "",
@@ -259,6 +308,8 @@ Page({
       this.recordingDurationMs = 0;
       this.liveRecognitionFailed = false;
       this.liveRecognitionSession = null;
+      this.lastTranscriptUpdateAt = Date.now();
+      this.lastLiveHintAt = 0;
       await authorizeRecordScope();
 
       if (
@@ -276,11 +327,22 @@ Page({
             },
             onPartialTranscript: (transcript) => {
               if (!this.isPageActive) return;
+              this.lastTranscriptUpdateAt = Date.now();
               this.setData({
                 transcriptText: transcript,
                 recognitionStatus: transcript
                   ? "实时识别中，你可以边说边看到文字。"
                   : "实时识别已连接，正在等待语音..."
+              });
+            },
+            onFailure: (error) => {
+              if (!this.isPageActive) return;
+              this.liveRecognitionFailed = true;
+              this.liveRecognitionSession = null;
+              this.stopLiveHintMonitor();
+              this.setData({
+                recognitionStatus:
+                  error?.message || "实时识别中断了，停止录音后会自动补做完整识别。"
               });
             }
           });
@@ -305,15 +367,21 @@ Page({
         submissionTimedOut: false,
         canPlayRecording: false,
         isPlayingRecording: false,
-        playbackStatus: ""
+        playbackStatus: "",
+        isLoadingNextQuestion: false
       });
       this.startCountdown();
+      this.startLiveHintMonitor();
       this.recorder.start({
         duration: 45000,
         format: "mp3",
-        frameSize: 16
+        sampleRate: 16000,
+        numberOfChannels: 1,
+        encodeBitRate: 32000,
+        frameSize: 4
       });
     } catch {
+      this.stopLiveHintMonitor();
       this.setData({
         status: "permission_failed",
         permissionDenied: true,
@@ -339,6 +407,8 @@ Page({
   },
 
   async handleRecognitionAfterRecording() {
+    this.stopLiveHintMonitor();
+
     if (!this.speechProvider || this.speechProvider.mode === "manual") {
       this.setData({
         status: "recognized",
@@ -509,6 +579,39 @@ Page({
     this.submitAttempt();
   },
 
+  async skipToNextQuestion() {
+    const { question, isLoadingNextQuestion } = this.data;
+
+    if (!question || isLoadingNextQuestion) {
+      return;
+    }
+
+    this.stopRecordedAnswerPlayback();
+    this.setData({
+      isLoadingNextQuestion: true,
+      errorMessage: ""
+    });
+
+    try {
+      const response = await fetchNextQuestion(question.id);
+      const app = getApp();
+      app.globalData.currentQuestion = response.question;
+
+      if (!this.isPageActive) {
+        return;
+      }
+
+      wx.redirectTo({
+        url: "/pages/home/home"
+      });
+    } catch (error) {
+      this.setData({
+        isLoadingNextQuestion: false,
+        errorMessage: error.message || "切换下一题失败，请稍后重试。"
+      });
+    }
+  },
+
   startProcessingTimers(submissionToken) {
     this.clearProcessingTimers();
 
@@ -557,6 +660,7 @@ Page({
   onUnload() {
     this.isPageActive = false;
     clearInterval(this.timer);
+    this.stopLiveHintMonitor();
     this.clearProcessingTimers();
     this.destroyAnswerAudioContext();
     this.liveRecognitionSession = null;
@@ -567,6 +671,7 @@ Page({
 
   onHide() {
     this.isPageActive = false;
+    this.stopLiveHintMonitor();
     this.stopRecordedAnswerPlayback();
     this.destroyAnswerAudioContext();
     this.liveRecognitionSession = null;
@@ -578,5 +683,8 @@ Page({
   onShow() {
     this.isPageActive = true;
     activeRecorderPage = this;
+    this.setData({
+      isLoadingNextQuestion: false
+    });
   }
 });
